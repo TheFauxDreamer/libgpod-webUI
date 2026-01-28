@@ -215,14 +215,11 @@ jobs:
 
       - name: Generate build system
         run: |
-          # gtk-doc is not available in MSYS2. We need two stubs:
-          # 1. gtk-doc.m4 — defines GTK_DOC_CHECK so autoreconf/aclocal can expand it
-          # 2. gtk-doc.make — included by docs/reference/Makefile.am at automake time;
-          #    must define EXTRA_DIST so the += in that Makefile.am works
           # gtk-doc is not available in MSYS2. We need three stubs:
           # 1. gtkdocize — autoreconf invokes this when it sees GTK_DOC_CHECK
           # 2. gtk-doc.m4 — defines GTK_DOC_CHECK so aclocal can expand it
           # 3. gtk-doc.make — included by docs/reference/Makefile.am at automake time
+          mkdir -p /usr/local/bin
           cat > /usr/local/bin/gtkdocize << 'SCRIPT'
           #!/bin/sh
           exit 0
