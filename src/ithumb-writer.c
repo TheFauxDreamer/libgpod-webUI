@@ -1209,7 +1209,7 @@ static gboolean ithumb_rearrange_thumbnail_file (gpointer _key,
     gint fd = -1;
     guint32 size = 0;
     GList *gl;
-    struct stat statbuf;
+    GStatBuf statbuf;
     guint32 offset;
     void *buf = NULL;
 

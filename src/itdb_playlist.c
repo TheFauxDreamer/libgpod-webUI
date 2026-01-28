@@ -1199,7 +1199,7 @@ Itdb_Playlist *itdb_playlist_duplicate (Itdb_Playlist *pl)
 	pl_dup->userdata = pl->userdata_duplicate (pl->userdata);
 
     /* Copy private data too */
-    pl_dup->priv = g_memdup (pl->priv, sizeof (Itdb_Playlist_Private));
+    pl_dup->priv = g_memdup2 (pl->priv, sizeof (Itdb_Playlist_Private));
 
     return pl_dup;
 }

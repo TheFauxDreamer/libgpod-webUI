@@ -355,7 +355,7 @@ Itdb_Track *itdb_track_duplicate (Itdb_Track *tr)
     tr_dup->sort_tvshow = g_strdup (tr->sort_tvshow);
 
     /* Copy private data too */
-    tr_dup->priv = g_memdup (tr->priv, sizeof (Itdb_Track_Private));
+    tr_dup->priv = g_memdup2 (tr->priv, sizeof (Itdb_Track_Private));
 
     /* Copy chapterdata */
     tr_dup->chapterdata = itdb_chapterdata_duplicate (tr->chapterdata);

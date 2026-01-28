@@ -416,7 +416,7 @@ static Itdb_Artwork *itdb_photodb_add_photo_internal (Itdb_PhotoDB *db,
     /* check if filename is valid */
     if (filename)
     {
-	struct stat statbuf;
+	GStatBuf statbuf;
 	if (g_stat  (filename, &statbuf) != 0)
 	{
 	    g_set_error (error, 0, -1,

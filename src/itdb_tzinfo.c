@@ -243,7 +243,7 @@ G_GNUC_INTERNAL void itdb_device_set_timezone_info (Itdb_Device *device)
     gint16 raw_timezone;
     gint timezone = 0;
     gboolean result;
-    struct stat stat_buf;
+    GStatBuf stat_buf;
     int status;
     char *prefs_path;
     guint offset;

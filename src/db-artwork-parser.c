@@ -87,7 +87,7 @@ get_utf16_string (void* buffer, gint length, guint byte_order)
 	/* Byte-swap the utf16 characters if necessary (I'm relying
 	 * on gcc to optimize most of this code away on LE platforms)
 	 */
-	tmp = g_memdup (buffer, length);
+	tmp = g_memdup2 (buffer, length);
 	for (i = 0; i < length/2; i++) {
 		tmp[i] = get_gint16 (tmp[i], byte_order);
 	}

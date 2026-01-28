@@ -8064,15 +8064,11 @@ gchar *itdb_get_artworkdb_path (const gchar *mountpoint)
  * Returns: current time
  *
  * Deprecated: kept for compatibility with older code, directly use
- * g_get_current_time() or time(NULL) instead
+ * g_get_real_time() / G_USEC_PER_SEC or time(NULL) instead
  */
 time_t itdb_time_get_mac_time (void)
 {
-    GTimeVal time;
-
-    g_get_current_time (&time);
-
-    return time.tv_sec;
+    return g_get_real_time () / G_USEC_PER_SEC;
 }
 
 /**

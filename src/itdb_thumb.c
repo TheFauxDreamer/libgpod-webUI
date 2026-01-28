@@ -57,7 +57,7 @@ Itdb_Thumb *itdb_thumb_new_from_data (const guchar *data, gsize len)
     thumb_memory = g_new0 (Itdb_Thumb_Memory, 1);
     thumb = (Itdb_Thumb *)thumb_memory;
     thumb->data_type = ITDB_THUMB_TYPE_MEMORY;
-    thumb_memory->image_data = g_memdup (data, len);
+    thumb_memory->image_data = g_memdup2 (data, len);
     thumb_memory->image_data_len = len;
 
     return thumb;
