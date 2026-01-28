@@ -73,23 +73,17 @@ db_parse_context_destroy (DBParseContext *ctx)
 static void
 db_parse_context_set_header_len (DBParseContext *ctx, off_t len)
 {
-	/* FIXME: this can probably happen in malformed itunesdb files, 
-	 * don't g_assert on this, only output a warning 
-	 */
-	g_assert ((ctx->cur_pos - ctx->buffer) <= len);
-	g_assert (len <= ctx->total_len);
+	g_return_if_fail ((ctx->cur_pos - ctx->buffer) <= len);
+	g_return_if_fail (len <= ctx->total_len);
 	ctx->header_len = len;
 }
 
 void
 db_parse_context_set_total_len (DBParseContext *ctx, off_t len)
 {
-	/* FIXME: this can probably happen in malformed itunesdb files, 
-	 * don't g_assert on this, only output a warning 
-	 */
-	g_assert ((ctx->cur_pos - ctx->buffer) <= len);
+	g_return_if_fail ((ctx->cur_pos - ctx->buffer) <= len);
 	if (ctx->header_len != 0) {
-		g_assert (len >= ctx->header_len);
+		g_return_if_fail (len >= ctx->header_len);
 	}
 	ctx->total_len = len;
 }

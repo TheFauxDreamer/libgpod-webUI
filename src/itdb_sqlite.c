@@ -1605,7 +1605,7 @@ static void sort_key_get_buffer_boundaries(const char* sval, int *length, int *w
 			}
 			i++;
 		}
-		free(sval_uppercase);
+		g_free(sval_uppercase);
 
 		word_count++;
 		/* magic + transformed string + length + word weights + null */
@@ -1640,8 +1640,7 @@ static void sqlite_func_iphone_sort_key(sqlite3_context *context, int argc, sqli
 		case SQLITE_TEXT:
 			sval = (const char*)sqlite3_value_text(argv[0]);
 			sort_key_get_buffer_boundaries(sval, &buffer_size, &word_offset);
-			buffer = (char*)malloc(buffer_size);
-			memset(buffer, '\0', buffer_size);
+			buffer = (char*)g_malloc0(buffer_size);
 			buffer[buffer_index] = 0x31;
 			if (sval) {
 				if (buffer_size > 4) {
@@ -1714,12 +1713,12 @@ static void sqlite_func_iphone_sort_key(sqlite3_context *context, int argc, sqli
 					buffer[2] = 0x01;
 				}
 			}
-			sqlite3_result_blob(context, buffer, buffer_size, free);
+			sqlite3_result_blob(context, buffer, buffer_size, g_free);
 			break;
 		case SQLITE_NULL:
-			buffer = (char*)malloc(4);
+			buffer = (char*)g_malloc0(4);
 			memcpy(buffer, "\x31\x01\x01\x00", 4);
-			sqlite3_result_blob(context, buffer, 4, free);
+			sqlite3_result_blob(context, buffer, 4, g_free);
 			break;
 		default:
 			sqlite3_result_null(context);

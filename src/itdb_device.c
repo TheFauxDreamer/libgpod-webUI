@@ -1879,6 +1879,9 @@ itdb_hex_from_string(unsigned char *dest, const int array_size, const char *s)
   if (strlen(s) > array_size*2)
     return -8;
 
+  if (strlen(s) % 2 != 0)
+    return -8;
+
   do {
     int low, high;
     if((high = ord_from_hex_char(s[0])) == -1 ||

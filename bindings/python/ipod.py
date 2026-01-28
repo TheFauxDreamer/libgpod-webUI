@@ -6,7 +6,6 @@ classes and methods provided here.
 """
 
 import gpod
-import types
 from mutagen.mp3 import MP3
 import mutagen.id3
 import gtkpod
@@ -17,7 +16,7 @@ import datetime
 
 if hasattr(gpod, 'HAVE_GDKPIXBUF') and hasattr(gpod, 'HAVE_PYGOBJECT'):
     try:
-        import gtk
+        from gi.repository import GdkPixbuf
         pixbuf_support = True
     except ImportError:
         pixbuf_support = False
@@ -116,8 +115,8 @@ class Database:
         gtkpod.write(itdbext_file, self, self._itdb_file)
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -182,7 +181,7 @@ class Database:
             if harddisk:
                 try:
                     filename = item._userdata_into_default_locale('filename')
-                except KeyError, e:
+                except KeyError as e:
                     raise TrackException("Unable to remove %s from hard disk, no filename available." % item)
                 os.unlink(filename)
             if ipod:
@@ -190,7 +189,7 @@ class Database:
                 if filename and os.path.exists(filename):
                     os.unlink(filename)
                     if not quiet:
-                        print "unlinked %s" % filename
+                        print("unlinked %s" % filename)
             gpod.itdb_track_unlink(item._track)
         else:
             raise DatabaseException("Unable to remove a %s from database" % type(item))
@@ -233,7 +232,7 @@ class Database:
 
         track = Track(**kwargs)
         self.add(track)
-        if kwargs.has_key('podcast') and kwargs['podcast'] == True:
+        if 'podcast' in kwargs and kwargs['podcast'] == True:
             self.Podcasts.add(track)
         else:
             self.Master.add(track)
@@ -327,7 +326,7 @@ class Track:
                 self.set_coverart_from_file(possible_image)
             try:
                 audiofile = MP3(self._userdata_into_default_locale('filename'))
-            except Exception, e:
+            except Exception as e:
                 raise TrackException(str(e))
             for tag, attrib in (('TPE1','artist'),
                                 ('TIT2','title'),
@@ -339,19 +338,18 @@ class Track:
                 try:
                     value = audiofile[tag]
                     if isinstance(value,mutagen.id3.NumericPartTextFrame):
-                        parts = map(int,value.text[0].split("/"))
+                        parts = list(map(int,value.text[0].split("/")))
                         if len(parts) == 2:
                             self[attrib[0]], self[attrib[1]] = parts
                         elif len(parts) == 1:
                             self[attrib[0]] = parts[0]
                     elif isinstance(value,mutagen.id3.TextFrame):
-                        self[attrib] = value.text[0].encode('UTF-8','replace')
+                        self[attrib] = str(value.text[0])
                 except KeyError:
                     pass
             if self['title'] is None:
                 self['title'] = os.path.splitext(
-                    os.path.split(filename)[1])[0].decode(
-                    defaultencoding).encode('UTF-8')
+                    os.path.split(filename)[1])[0]
             self['tracklen'] = int(audiofile.info.length * 1000)
             self.set_podcast(podcast)
         elif proxied_track:
@@ -365,27 +363,13 @@ class Track:
 
     def _set_userdata_utf8(self, key, value):
         self['userdata']['%s_locale' % key] = value
-        try:
-            self['userdata']['%s_utf8'   % key] = value.decode(self['userdata']['charset']).encode('UTF-8')
-        except UnicodeDecodeError, e:
-            # string clearly isn't advertised charset.  I prefer to
-            # not add the _utf8 version as we can't actually generate
-            # it. Maybe we'll have to populate a close-fit though.
-            pass
+        self['userdata']['%s_utf8'   % key] = value
 
     def _userdata_into_default_locale(self, key):
-        # to cope with broken filenames, we should trust the _locale version more,
-        # an even that may not really be in self['userdata']['charset']
-        if self['userdata']['charset'] == defaultencoding:
-            # don't try translate it or check it's actually valid, in case it isn't.
-            return self['userdata']['%s_locale' % key]
-        # our filesystem is in a different encoding to the filename, so
-        # try to convert it. The UTF-8 version is likely best to try first?
-        if self['userdata'].has_key('%s_utf8' % key):
-            unicode_value = self['userdata']['%s_utf8' % key].decode('UTF-8')
-        else:
-            unicode_value = self['userdata']['%s_locale' % key].decode(self['userdata']['charset'])
-        return unicode_value.encode(defaultencoding)
+        # In Python 3, strings are already Unicode. Return as-is.
+        if '%s_utf8' % key in self['userdata']:
+            return self['userdata']['%s_utf8' % key]
+        return self['userdata']['%s_locale' % key]
 
     def set_coverart_from_file(self, filename):
         gpod.itdb_track_set_thumbnails(self._track, filename)
@@ -395,7 +379,7 @@ class Track:
         if pixbuf == None:
             gpod.itdb_track_remove_thumbnails(self._track)
         elif isinstance(pixbuf, Photo):
-            raise NotImplemented("Can't set coverart from existing coverart yet")
+            raise NotImplementedError("Can't set coverart from existing coverart yet")
         else:
             gpod.itdb_track_set_thumbnails_from_pixbuf(self._track,
                                                        pixbuf)
@@ -511,8 +495,6 @@ class Track:
         if item == "userdata":
             gpod.sw_set_track_userdata(self._track, value)
             return
-        if type(value) == types.UnicodeType:
-            value = value.encode('UTF-8','replace')
         if item in self._proxied_attributes:
             return setattr(self._track, item, value)
         else:
@@ -555,12 +537,12 @@ class _Playlists:
     def __len__(self):
         return gpod.sw_get_list_len(self._db._itdb.playlists)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -575,7 +557,7 @@ class _Playlists:
         if ((id and (number or name)) or (number and name)):
             raise ValueError("Only specify id, number OR name")
         if id:
-            if type(id) in (types.TupleType, types.ListType):
+            if type(id) in (tuple, list):
                 return [self.__call__(id=i) for i in id]
             else:
                 pl = gpod.itdb_playlist_by_id(self._db._itdb,
@@ -586,7 +568,7 @@ class _Playlists:
                 else:
                     raise KeyError("Playlist with id %s not found." % repr(id))
         if name:
-            if type(name) in (types.TupleType, types.ListType):
+            if type(name) in (tuple, list):
                 return [self.__call__(name=i) for i in name]
             else:
                 pl = gpod.itdb_playlist_by_name(self._db._itdb,
@@ -597,7 +579,7 @@ class _Playlists:
                 else:
                     raise KeyError("Playlist with name %s not found." % repr(name))
         if number:
-            if type(number) in (types.TupleType, types.ListType):
+            if type(number) in (tuple, list):
                 return [self.__call__(number=i) for i in number]
             else:
                 pl = gpod.itdb_playlist_by_nr(self._db._itdb,
@@ -733,8 +715,8 @@ class Playlist:
             len(self))
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -745,7 +727,7 @@ class Playlist:
         #return self._pl.num # Always 0 ?
         return gpod.sw_get_list_len(self._pl.members)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
 
     def __contains__(self, track):
@@ -803,8 +785,8 @@ class PhotoDatabase:
         return gpod.sw_get_list_len(self._itdb.photos)
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -854,12 +836,12 @@ class _PhotoAlbums:
     def __len__(self):
         return gpod.sw_get_list_len(self._db._itdb.photoalbums)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -871,7 +853,7 @@ class _PhotoAlbums:
         return "<PhotoAlbums from %s>" % self._db
 
     def __call__(self, name):
-        if type(name) in (types.TupleType, types.ListType):
+        if type(name) in (tuple, list):
             return [self.__call__(name=i) for i in name]
         else:
             pa = gpod.itdb_photodb_photoalbum_by_name(self._db._itdb,
@@ -926,8 +908,8 @@ class PhotoAlbum:
             self.album_type)
 
     def __getitem__(self, index):
-        if type(index) == types.SliceType:
-            return [self[i] for i in xrange(*index.indices(len(self)))]
+        if type(index) == slice:
+            return [self[i] for i in range(*index.indices(len(self)))]
         else:
             if index < 0:
                 index += len(self)
@@ -937,7 +919,7 @@ class PhotoAlbum:
     def __len__(self):
         return gpod.sw_get_list_len(self._pa.members)
 
-    def __nonzero__(self):
+    def __bool__(self):
         return True
 
 class Photo:
@@ -1018,8 +1000,6 @@ class Photo:
             raise KeyError('No such key: %s' % item)
 
     def __setitem__(self, item, value):
-        if type(value) == types.UnicodeType:
-            value = value.encode('UTF-8','replace')
         if item in self._proxied_attributes:
             return setattr(self._photo, item, value)
         else:

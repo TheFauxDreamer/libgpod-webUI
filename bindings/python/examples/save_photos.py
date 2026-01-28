@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 ##  Copyright (C) 2007 Nick Piper <nick-gtkpod at nickpiper co uk>
 ##  Part of the gtkpod project.
@@ -25,16 +25,16 @@
 import gpod
 
 if not hasattr(gpod.Photo, 'get_pixbuf'):
-    print 'Sorry, gpod was built without pixbuf support.'
+    print('Sorry, gpod was built without pixbuf support.')
     raise SystemExit
 
 photodb = gpod.PhotoDatabase("/mnt/ipod")
 
-print photodb
+print(photodb)
 for album in photodb.PhotoAlbums:
-    print " ", album
+    print(" ", album)
     for photo in album:
-        print "  ", photo
+        print("  ", photo)
         for w,h,s in ((0,0,'small'), (-1,-1,'large')):
             photo.get_pixbuf(w,h).save("/tmp/%d-%s.png" % (photo['id'],s),"png")
 

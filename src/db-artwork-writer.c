@@ -335,8 +335,8 @@ write_mhod_type_3 (gchar *string, iPodBuffer *buffer)
 	    memset (mhod->string + g2l*len, 0, padding);
 	    break;
 	case G_BIG_ENDIAN:
+	    len = strlen(string);
 	    mhod->encoding = 1; /* 8 bit field, no need to byteswap */
-            /* FIXME: len isn't initialized */
 	    mhod->string_len = get_gint32 (len, buffer->byte_order);
 	    /* pad string if necessary */
 	    /* e.g. len = 7 bytes, len%4 = 3, 4-3=1 -> requires 1 byte

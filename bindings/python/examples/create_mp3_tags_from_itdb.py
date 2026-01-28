@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # create_mp3_tags_from_itdb.py (Populate iPod's MP3 tags with data from iTunesDB)
 # Copyright (c) 20060423 Thomas Perl <thp at perli.net>
 #
@@ -37,7 +37,7 @@ IPOD_MOUNT = '/mnt/ipod/'
 itdb = gpod.itdb_parse( IPOD_MOUNT, None)
 
 if not itdb:
-    print 'Cannot open iPod at %s' % ( IPOD_MOUNT )
+    print('Cannot open iPod at %s' % ( IPOD_MOUNT ))
     sys.exit( 2)
 
 # just for some stats..
@@ -53,9 +53,9 @@ for track in gpod.sw_get_tracks( itdb):
     try:
         mp3 = mutagen.mp3.MP3(filename)
         if not mp3.tags:
-            print ''
-            print '%s has no id3 tags' % ( filename )
-            print 'iTDB says: AR = %s, TI = %s, AL = %s' % ( track.artist, track.title, track.album )
+            print('')
+            print('%s has no id3 tags' % ( filename ))
+            print('iTDB says: AR = %s, TI = %s, AL = %s' % ( track.artist, track.title, track.album ))
             mp3.add_tags() # create header
             mp3.tags.add(mutagen.id3.TPE1(3,track.artist))
             mp3.tags.add(mutagen.id3.TALB(3,track.album))
@@ -63,15 +63,15 @@ for track in gpod.sw_get_tracks( itdb):
             mp3.tags.add(mutagen.id3.TXXX(3,"Taggger","tagged from itdb with libgpod"))
             mp3.save()
             counter_upd += 1
-            print 'wrote tags to: %s' % ( filename )
+            print('wrote tags to: %s' % ( filename ))
         else:
             counter_left += 1            
-    except Exception, e:
-        print 'informative debug output: something went wrong.. : %s' % e
+    except Exception as e:
+        print('informative debug output: something went wrong.. : %s' % e)
         counter_left = counter_left + 1
 
-print ''
-print ' ++ results ++'
-print "updated: %d\nleft as-is: %d" % ( counter_upd, counter_left )
-print ''
+print('')
+print(' ++ results ++')
+print("updated: %d\nleft as-is: %d" % ( counter_upd, counter_left ))
+print('')
 

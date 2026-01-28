@@ -4,8 +4,6 @@ import tempfile
 import os
 import datetime
 import time
-import types
-
 gpod = __import__('__init__')
 
 class TestiPodFunctions(unittest.TestCase):
@@ -87,7 +85,7 @@ class TestiPodFunctions(unittest.TestCase):
 
     def testVersion(self):
         self.assertEqual(type(gpod.version_info),
-                         types.TupleType)
+                         tuple)
 
 class TestPhotoDatabase(unittest.TestCase):
     def setUp(self):

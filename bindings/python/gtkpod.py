@@ -1,16 +1,7 @@
 """Read and write Gtkpod extended info files."""
 
 import os
-import types
-
-# The hashlib module is only available in python >= 2.5,
-# while the sha module is deprecated in 2.6.
-try:
-    import hashlib
-    sha1 = hashlib.sha1
-except ImportError:
-    import sha
-    sha1 = sha.sha
+import hashlib
 
 # This file is originally stolen from pypod-0.5.0
 # http://superduper.net/index.py?page=pypod
@@ -29,10 +20,11 @@ def sha1_hash(filename):
     import struct
     # only hash the first 16k
     hash_len = 4*4096
-    hash = sha1()
+    hash = hashlib.sha1()
     size = os.path.getsize(filename)
     hash.update(struct.pack("<L", size))
-    hash.update(open(filename).read(hash_len))
+    with open(filename, 'rb') as f:
+        hash.update(f.read(hash_len))
     return hash.hexdigest()
 
 def write(filename, db, itunesdb_file):
@@ -48,7 +40,7 @@ def write(filename, db, itunesdb_file):
     file = open(filename, "w")
 
     def write_pair(name, value):
-        if type(value) not in (types.StringType, types.UnicodeType):
+        if not isinstance(value, str):
             # e.g., an integer
             value = str(value)
         file.write("=".join([name, value]))
@@ -77,11 +69,11 @@ def parse(filename, db, itunesdb_file=None):
 
     ext_hash_valid = False
     ext_data = {}
-    
+
     for line in open(filename).readlines():
         parts = line.strip().split("=", 1)
         if len(parts) != 2:
-            print parts
+            print(parts)
         name, value = parts
         if name == "id":
             if value == 'xxx':
@@ -110,21 +102,20 @@ def parse(filename, db, itunesdb_file=None):
     else:
         # the iTunesDB was changed, so id's will be wrong.
         # match up using hash instead
-        tracks_by_sha = {}    
+        tracks_by_sha = {}
         for track in db:
             # make a dict to allow us to find each track by the sha1_hash
             tracks_by_sha[sha1_hash(track.ipod_filename())] = track
         for ext_block in ext_data.values():
             try:
-                if ext_block.has_key('sha1_hash'):
+                if 'sha1_hash' in ext_block:
                     track = tracks_by_sha[ext_block['sha1_hash']]
-                elif ext_block.has_key('md5_hash'):
+                elif 'md5_hash' in ext_block:
                     # recent gpod uses sha1_hash, older uses md5_hash
-                    track = tracks_by_sha[ext_block['md5_hash']]                    
+                    track = tracks_by_sha[ext_block['md5_hash']]
             except KeyError:
                 # what should we do about this?
-                print "Failed to match hash from extended information file with one that we just calculated:"
-                print ext_block
+                print("Failed to match hash from extended information file with one that we just calculated:")
+                print(ext_block)
                 continue
             track['userdata'] = ext_block
-

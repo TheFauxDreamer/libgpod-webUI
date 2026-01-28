@@ -1,16 +1,16 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 import gpod
 
 db = gpod.Database()
 
-print db
+print(db)
 
 for track in db[4:20]:
-    print track
-    print track['title']
+    print(track)
+    print(track['title'])
 
 for pl in db.Playlists:
-    print pl
+    print(pl)
     for track in pl:
-        print " ", track
+        print(" ", track)

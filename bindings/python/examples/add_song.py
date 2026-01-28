@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 ##  Copyright (C) 2006 Nick Piper <nick-gtkpod at nickpiper co uk>
 ##  Part of the gtkpod project.
@@ -26,13 +26,13 @@ import os, os.path
 import gpod
 import sys
 from optparse import OptionParser
-import urlparse, urllib2
+import urllib.parse, urllib.request
 import tempfile
 import shutil
 
 def download(path):
-    print "Downloading %s" % path
-    remotefile = urllib2.urlopen(path)
+    print("Downloading %s" % path)
+    remotefile = urllib.request.urlopen(path)
     try:
         size = int(remotefile.info()['Content-Length'])
     except KeyError:
@@ -81,40 +81,40 @@ if options.playlist:
             playlist = pl
     if not playlist:
         playlist = db.new_Playlist(title=options.playlist)
-        print "Created new playlist %s" % playlist
+        print("Created new playlist %s" % playlist)
 
 
 deleteWhenDone = []
 
 for path in args:
-    transport = urlparse.urlsplit(path)[0]
+    transport = urllib.parse.urlsplit(path)[0]
     if transport:
         path = download(path)
         deleteWhenDone.append(path)
 
     try:
         track = db.new_Track(filename=path, podcast=options.ispodcast)
-    except gpod.TrackException, e:
-        print "Exception handling %s: %s" % (path, e)
+    except gpod.TrackException as e:
+        print("Exception handling %s: %s" % (path, e))
         continue # skip this track
 
-    print "Added %s to database" % track
+    print("Added %s to database" % track)
 
     if playlist:
-        print " adding to playlist %s" % playlist
+        print(" adding to playlist %s" % playlist)
         playlist.add(track)
 
 def print_progress(database, track, i, total):
     sys.stdout.write("Copying to iPod %04d/%d: %s\r" % (i,total,track))
     sys.stdout.flush()
         
-print "Copying to iPod"
+print("Copying to iPod")
 db.copy_delayed_files(callback=print_progress)
 
 [os.unlink(f) for f in deleteWhenDone]
 
-print "Saving database"
+print("Saving database")
 db.close()
-print "Saved db"
+print("Saved db")
 
 
