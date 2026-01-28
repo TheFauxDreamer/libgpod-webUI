@@ -105,9 +105,12 @@ jobs:
 
       - name: Configure
         run: |
+          EXTRA_LIBS=""
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             # Help pkg-config find brew packages
             export PKG_CONFIG_PATH="$(brew --prefix libplist)/lib/pkgconfig:$(brew --prefix glib)/lib/pkgconfig:$(brew --prefix gdk-pixbuf)/lib/pkgconfig:$(brew --prefix libxml2)/lib/pkgconfig:$(brew --prefix sqlite)/lib/pkgconfig:$PKG_CONFIG_PATH"
+            # itdb_hashAB.c uses GModule (g_module_open etc.) which requires gmodule-2.0
+            EXTRA_LIBS="$(pkg-config --libs gmodule-2.0)"
           fi
           ./configure \
             --with-python \
@@ -115,7 +118,8 @@ jobs:
             --disable-more-warnings \
             --without-hal \
             --disable-udev \
-            --without-libimobiledevice
+            --without-libimobiledevice \
+            LIBS="$EXTRA_LIBS"
 
       - name: Build
         run: |
@@ -152,8 +156,96 @@ jobs:
           export PYTHONPATH
           python -c "import gpod; print('gpod module loaded successfully')"
 
+  build-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - msystem: MINGW64
+            arch: x86_64
+            artifact-name: libgpod-windows-x86_64-py3.12
+
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup MSYS2
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ${{ matrix.msystem }}
+          update: true
+          install: >-
+            mingw-w64-${{ matrix.arch }}-gcc
+            mingw-w64-${{ matrix.arch }}-glib2
+            mingw-w64-${{ matrix.arch }}-sqlite3
+            mingw-w64-${{ matrix.arch }}-libplist
+            mingw-w64-${{ matrix.arch }}-zlib
+            mingw-w64-${{ matrix.arch }}-gdk-pixbuf2
+            mingw-w64-${{ matrix.arch }}-libxml2
+            mingw-w64-${{ matrix.arch }}-swig
+            mingw-w64-${{ matrix.arch }}-python
+            mingw-w64-${{ matrix.arch }}-python-mutagen
+            mingw-w64-${{ matrix.arch }}-pkg-config
+            autoconf
+            automake
+            libtool
+            intltool
+            gettext-devel
+            make
+
+      - name: Create libplist pkg-config compatibility symlink
+        run: |
+          PLIST_PC=$(pkg-config --variable=pcfiledir libplist-2.0 2>/dev/null || true)
+          if [ -n "$PLIST_PC" ] && [ ! -f "$PLIST_PC/libplist.pc" ]; then
+            ln -s "$PLIST_PC/libplist-2.0.pc" "$PLIST_PC/libplist.pc"
+          fi
+
+      - name: Generate build system
+        run: autoreconf -fi
+
+      - name: Configure
+        run: |
+          ./configure \
+            --with-python \
+            --prefix=/mingw64 \
+            --disable-more-warnings \
+            --without-hal \
+            --disable-udev \
+            --without-libimobiledevice
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Install to staging directory
+        run: make install DESTDIR=$(pwd)/staging
+
+      - name: Package artifacts
+        run: |
+          cd staging
+          tar czf ../${{ matrix.artifact-name }}.tar.gz .
+          cd ..
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact-name }}
+          path: ${{ matrix.artifact-name }}.tar.gz
+
+      - name: Verify Python bindings
+        run: |
+          export PATH="$(pwd)/staging/mingw64/bin:$PATH"
+          PYTHONPATH=$(find staging -type d -name gpod | head -1 | xargs dirname)
+          export PYTHONPATH
+          python -c "import gpod; print('gpod module loaded successfully')"
+
   release:
-    needs: build
+    needs: [build, build-windows]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -182,6 +274,7 @@ jobs:
           - Linux x86_64 (Ubuntu 24.04, Python 3.12)
           - macOS x86_64 Intel (macOS 15, Python 3.12)
           - macOS arm64 Apple Silicon (macOS 15, Python 3.12)
+          - Windows x86_64 (MSYS2/MinGW, Python 3.12)
 
           ## Installation
           Extract the tarball and copy the files to your system, or set \`LD_LIBRARY_PATH\` / \`DYLD_LIBRARY_PATH\` and \`PYTHONPATH\` to point to the extracted directories." \
