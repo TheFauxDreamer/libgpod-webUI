@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebPod - iPod Manager</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- Status Bar -->
+    <header id="status-bar">
+        <div class="status-left">
+            <span id="ipod-icon">&#9835;</span>
+            <span id="ipod-status-text">No iPod connected</span>
+        </div>
+        <div class="status-center">
+            <div id="progress-container" class="hidden">
+                <div id="progress-bar"><div id="progress-fill"></div></div>
+                <span id="progress-text"></span>
+            </div>
+        </div>
+        <div class="status-right">
+            <button id="sync-btn" class="btn btn-primary" disabled>Sync to iPod</button>
+        </div>
+    </header>
+
+    <div id="main-layout">
+        <!-- Sidebar -->
+        <aside id="sidebar">
+            <!-- Library Section -->
+            <div class="sidebar-section">
+                <h3>Music Library</h3>
+                <div id="library-path-display" class="sidebar-info">No path set</div>
+                <div class="sidebar-actions">
+                    <button id="set-path-btn" class="btn btn-small">Set Path</button>
+                    <button id="scan-btn" class="btn btn-small" disabled>Scan</button>
+                </div>
+                <div id="library-stats" class="sidebar-info"></div>
+            </div>
+
+            <!-- iPod Section -->
+            <div class="sidebar-section">
+                <h3>iPod</h3>
+                <div id="ipod-connect-area">
+                    <select id="ipod-select">
+                        <option value="">Detecting iPods...</option>
+                    </select>
+                    <button id="connect-btn" class="btn btn-small">Connect</button>
+                    <button id="disconnect-btn" class="btn btn-small hidden">Disconnect</button>
+                </div>
+                <div id="playlists-area" class="hidden">
+                    <h4>Playlists</h4>
+                    <ul id="playlists-list"></ul>
+                    <div class="sidebar-actions">
+                        <button id="new-playlist-btn" class="btn btn-small">+ New Playlist</button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main id="content">
+            <!-- Toolbar -->
+            <div id="toolbar">
+                <div class="toolbar-left">
+                    <button id="view-albums" class="btn btn-tab active">Albums</button>
+                    <button id="view-tracks" class="btn btn-tab">Tracks</button>
+                    <button id="view-ipod-tracks" class="btn btn-tab">iPod Tracks</button>
+                </div>
+                <div class="toolbar-right">
+                    <input type="text" id="search-input" placeholder="Search..." />
+                    <select id="sort-select">
+                        <option value="artist">Artist</option>
+                        <option value="album">Album</option>
+                        <option value="title">Title</option>
+                        <option value="year">Year</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Album Grid View -->
+            <div id="albums-view" class="content-view">
+                <div id="albums-grid"></div>
+            </div>
+
+            <!-- Track List View -->
+            <div id="tracks-view" class="content-view hidden">
+                <table id="tracks-table">
+                    <thead>
+                        <tr>
+                            <th class="col-nr">#</th>
+                            <th class="col-title">Title</th>
+                            <th class="col-artist">Artist</th>
+                            <th class="col-album">Album</th>
+                            <th class="col-genre">Genre</th>
+                            <th class="col-duration">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tracks-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- iPod Tracks View -->
+            <div id="ipod-tracks-view" class="content-view hidden">
+                <table id="ipod-tracks-table">
+                    <thead>
+                        <tr>
+                            <th class="col-title">Title</th>
+                            <th class="col-artist">Artist</th>
+                            <th class="col-album">Album</th>
+                            <th class="col-genre">Genre</th>
+                            <th class="col-duration">Duration</th>
+                            <th class="col-plays">Plays</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ipod-tracks-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state">
+                <p>Set your music library path and scan to get started.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Path Dialog -->
+    <div id="path-dialog" class="dialog-overlay hidden">
+        <div class="dialog">
+            <h3>Set Music Library Path</h3>
+            <p>Enter the full path to your music folder:</p>
+            <input type="text" id="path-input" placeholder="/Users/you/Music" />
+            <div class="dialog-actions">
+                <button id="path-cancel" class="btn">Cancel</button>
+                <button id="path-confirm" class="btn btn-primary">Set Path</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Playlist Name Dialog -->
+    <div id="playlist-dialog" class="dialog-overlay hidden">
+        <div class="dialog">
+            <h3>New Playlist</h3>
+            <input type="text" id="playlist-name-input" placeholder="Playlist name" />
+            <div class="dialog-actions">
+                <button id="playlist-cancel" class="btn">Cancel</button>
+                <button id="playlist-confirm" class="btn btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="hidden"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
+    <script src="/static/js/app.js"></script>
+    <script src="/static/js/library.js"></script>
+    <script src="/static/js/ipod.js"></script>
+    <script src="/static/js/dragdrop.js"></script>
+    <script src="/static/js/sync.js"></script>
+</body>
+</html>
