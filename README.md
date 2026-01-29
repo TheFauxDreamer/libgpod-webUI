@@ -17,7 +17,7 @@ Go to [Releases](../../releases) and download the file for your system:
 | Your Computer | Download |
 |---------------|----------|
 | Windows | `libgpod-windows-x86_64-py3.12.tar.gz` |
-| Mac (M1/M2/M3) | `libgpod-macos-arm64-py3.12.tar.gz` |
+| Mac (M Series) | `libgpod-macos-arm64-py3.12.tar.gz` |
 | Mac (Intel) | `libgpod-macos-x86_64-py3.12.tar.gz` |
 | Linux (Ubuntu 24.04) | `libgpod-linux-x86_64-py3.12.tar.gz` |
 | Linux (Ubuntu 22.04) | `libgpod-linux-x86_64-py3.10.tar.gz` |
