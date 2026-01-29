@@ -126,12 +126,13 @@ def _extract_metadata(file_path):
     return meta
 
 
-def scan_directory(library_path, progress_callback=None):
+def scan_directory(library_path, progress_callback=None, is_podcast=False):
     """Scan a directory for audio files and store metadata in the database.
 
     Args:
         library_path: Root directory to scan
         progress_callback: Optional function(scanned, total, current_file)
+        is_podcast: If True, mark scanned tracks as podcasts
     """
     library_path = Path(library_path)
     if not library_path.is_dir():
@@ -184,6 +185,7 @@ def scan_directory(library_path, progress_callback=None):
             'sha1_hash': file_hash,
             'has_artwork': 1 if has_art else 0,
             'artwork_hash': art_hash,
+            'is_podcast': 1 if is_podcast else 0,
             **meta,
         }
         models.upsert_track(track_data)

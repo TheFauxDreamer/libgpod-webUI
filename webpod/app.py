@@ -36,6 +36,7 @@ def index():
 
 @app.route('/api/library/set-path', methods=['POST'])
 def library_set_path():
+    """Legacy endpoint - use /api/settings instead."""
     data = request.get_json()
     path = data.get('path', '').strip()
     if not path or not Path(path).is_dir():
@@ -46,8 +47,46 @@ def library_set_path():
 
 @app.route('/api/library/path', methods=['GET'])
 def library_get_path():
+    """Legacy endpoint - use /api/settings instead."""
     path = models.get_library_path()
     return jsonify({"path": path})
+
+
+# ─── Settings API ─────────────────────────────────────────────────────
+
+@app.route('/api/settings', methods=['GET'])
+def get_settings():
+    """Get all settings including library paths."""
+    music_path = models.get_setting('music_library_path')
+    podcast_path = models.get_setting('podcast_library_path')
+    return jsonify({
+        'music_path': music_path,
+        'podcast_path': podcast_path,
+        'music_set': bool(music_path),
+        'podcast_set': bool(podcast_path),
+        'music_count': models.get_track_count(is_podcast=False),
+        'podcast_count': models.get_track_count(is_podcast=True)
+    })
+
+
+@app.route('/api/settings', methods=['POST'])
+def save_settings():
+    """Save settings."""
+    data = request.get_json()
+
+    if 'music_path' in data:
+        path = data['music_path'].strip() if data['music_path'] else ''
+        if path and not Path(path).is_dir():
+            return jsonify({"error": f"Music directory not found: {path}"}), 400
+        models.set_setting('music_library_path', path if path else None)
+
+    if 'podcast_path' in data:
+        path = data['podcast_path'].strip() if data['podcast_path'] else ''
+        if path and not Path(path).is_dir():
+            return jsonify({"error": f"Podcast directory not found: {path}"}), 400
+        models.set_setting('podcast_library_path', path if path else None)
+
+    return jsonify({"success": True})
 
 
 @app.route('/api/library/scan', methods=['POST'])
@@ -92,6 +131,50 @@ def library_tracks():
 def library_albums():
     albums = models.get_albums()
     return jsonify({"albums": albums})
+
+
+@app.route('/api/library/scan-podcasts', methods=['POST'])
+def library_scan_podcasts():
+    """Scan podcast library directory."""
+    path = models.get_setting('podcast_library_path')
+    if not path:
+        return jsonify({"error": "No podcast library path configured"}), 400
+    if not Path(path).is_dir():
+        return jsonify({"error": f"Directory not found: {path}"}), 400
+
+    def _scan():
+        def progress(scanned, total, current_file):
+            socketio.emit('podcast_scan_progress', {
+                'scanned': scanned,
+                'total': total,
+                'current_file': os.path.basename(current_file),
+            })
+
+        try:
+            scan_directory(path, progress_callback=progress, is_podcast=True)
+            total = models.get_track_count(is_podcast=True)
+            socketio.emit('podcast_scan_complete', {'total_episodes': total})
+        except Exception as e:
+            socketio.emit('podcast_scan_error', {'message': str(e)})
+
+    socketio.start_background_task(_scan)
+    return jsonify({"status": "scanning"})
+
+
+# ─── Podcast API ──────────────────────────────────────────────────────
+
+@app.route('/api/podcasts/series', methods=['GET'])
+def podcast_series():
+    """Get all podcast series."""
+    series = models.get_podcast_series_simple()
+    return jsonify({"series": series})
+
+
+@app.route('/api/podcasts/episodes/<path:series_name>', methods=['GET'])
+def podcast_episodes(series_name):
+    """Get episodes for a podcast series."""
+    episodes = models.get_podcast_episodes(series_name)
+    return jsonify({"episodes": episodes})
 
 
 @app.route('/api/library/import-m3u', methods=['POST'])

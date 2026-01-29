@@ -27,15 +27,20 @@
     <div id="main-layout">
         <!-- Sidebar -->
         <aside id="sidebar">
-            <!-- Library Section -->
+            <!-- Settings Section -->
             <div class="sidebar-section">
-                <h3>Music Library</h3>
-                <div id="library-path-display" class="sidebar-info">No path set</div>
-                <div class="sidebar-actions">
-                    <button id="set-path-btn" class="btn btn-small">Set Path</button>
-                    <button id="scan-btn" class="btn btn-small" disabled>Scan</button>
+                <h3>Library</h3>
+                <button id="settings-btn" class="btn btn-small btn-block">Settings</button>
+                <div class="settings-status">
+                    <div id="music-status" class="status-indicator">
+                        <span class="status-dot not-set"></span>
+                        <span class="status-text">Music library not set</span>
+                    </div>
+                    <div id="podcast-status" class="status-indicator">
+                        <span class="status-dot not-set"></span>
+                        <span class="status-text">Podcast library not set</span>
+                    </div>
                 </div>
-                <div id="library-stats" class="sidebar-info"></div>
             </div>
 
             <!-- iPod Section -->
@@ -66,6 +71,7 @@
                 <div class="toolbar-left">
                     <button id="view-albums" class="btn btn-tab active">Albums</button>
                     <button id="view-tracks" class="btn btn-tab">Tracks</button>
+                    <button id="view-podcasts" class="btn btn-tab">Podcasts</button>
                     <button id="view-ipod-tracks" class="btn btn-tab">iPod Tracks</button>
                 </div>
                 <div class="toolbar-center">
@@ -111,6 +117,26 @@
                 </table>
             </div>
 
+            <!-- Podcasts View -->
+            <div id="podcasts-view" class="content-view hidden">
+                <div id="podcast-series-grid"></div>
+                <div id="podcast-episodes" class="hidden">
+                    <button id="podcast-back-btn" class="btn btn-small">← Back to Series</button>
+                    <h3 id="podcast-series-title"></h3>
+                    <table id="podcast-episodes-table">
+                        <thead>
+                            <tr>
+                                <th class="col-nr">#</th>
+                                <th class="col-title">Episode</th>
+                                <th class="col-year">Year</th>
+                                <th class="col-duration">Duration</th>
+                            </tr>
+                        </thead>
+                        <tbody id="podcast-episodes-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- iPod Tracks View -->
             <div id="ipod-tracks-view" class="content-view hidden">
                 <table id="ipod-tracks-table">
@@ -130,12 +156,53 @@
 
             <!-- Empty State -->
             <div id="empty-state">
-                <p>Set your music library path and scan to get started.</p>
+                <p>Click Settings to configure your music and podcast libraries.</p>
             </div>
         </main>
     </div>
 
-    <!-- Path Dialog -->
+    <!-- Settings Dialog -->
+    <div id="settings-dialog" class="dialog-overlay hidden">
+        <div class="dialog dialog-wide">
+            <h3>Settings</h3>
+
+            <div class="settings-group">
+                <label>Music Library Path</label>
+                <div class="path-input-row">
+                    <input type="text" id="music-path-input" placeholder="/path/to/music" />
+                </div>
+                <div class="settings-group-actions">
+                    <button id="music-scan-btn" class="btn btn-small" disabled>Scan Music</button>
+                    <span id="music-scan-status" class="scan-status"></span>
+                </div>
+            </div>
+
+            <div class="settings-group">
+                <label>Podcast Library Path</label>
+                <div class="path-input-row">
+                    <input type="text" id="podcast-path-input" placeholder="/path/to/podcasts" />
+                </div>
+                <div class="settings-group-actions">
+                    <button id="podcast-scan-btn" class="btn btn-small" disabled>Scan Podcasts</button>
+                    <span id="podcast-scan-status" class="scan-status"></span>
+                </div>
+            </div>
+
+            <div id="scan-progress-area" class="hidden">
+                <div class="progress-bar-container">
+                    <div id="settings-progress-bar" class="progress-bar"></div>
+                </div>
+                <div id="settings-progress-text"></div>
+            </div>
+
+            <div class="dialog-actions">
+                <button id="settings-save" class="btn btn-primary">Save</button>
+                <button id="settings-close" class="btn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Path Dialog (legacy) -->
     <div id="path-dialog" class="dialog-overlay hidden">
         <div class="dialog">
             <h3>Set Music Library Path</h3>
@@ -187,5 +254,6 @@
     <script src="/static/js/ipod.js"></script>
     <script src="/static/js/dragdrop.js"></script>
     <script src="/static/js/sync.js"></script>
+    <script src="/static/js/podcasts.js"></script>
 </body>
 </html>

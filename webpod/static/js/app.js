@@ -67,10 +67,11 @@ var WebPod = {
      */
     switchView: function(view) {
         WebPod.currentView = view;
-        var views = ['albums', 'tracks', 'ipod-tracks'];
+        var views = ['albums', 'tracks', 'podcasts', 'ipod-tracks'];
         var buttons = {
             'albums': document.getElementById('view-albums'),
             'tracks': document.getElementById('view-tracks'),
+            'podcasts': document.getElementById('view-podcasts'),
             'ipod-tracks': document.getElementById('view-ipod-tracks')
         };
         views.forEach(function(v) {
@@ -84,9 +85,9 @@ var WebPod = {
             }
             if (buttons[v]) {
                 if (v === view) {
-                    buttons[v].classList.add('selected');
+                    buttons[v].classList.add('active');
                 } else {
-                    buttons[v].classList.remove('selected');
+                    buttons[v].classList.remove('active');
                 }
             }
         });
@@ -95,50 +96,11 @@ var WebPod = {
             Library.loadAlbums();
         } else if (view === 'tracks') {
             Library.loadTracks();
+        } else if (view === 'podcasts') {
+            Podcasts.loadSeries();
         } else if (view === 'ipod-tracks') {
             IPod.loadTracks();
         }
-    },
-
-    /**
-     * Initialize path dialog
-     */
-    initPathDialog: function() {
-        var dialog = document.getElementById('path-dialog');
-        var input = document.getElementById('path-input');
-        var setBtn = document.getElementById('set-path-btn');
-        var cancelBtn = document.getElementById('path-cancel');
-        var confirmBtn = document.getElementById('path-confirm');
-
-        setBtn.addEventListener('click', function() {
-            if (WebPod.libraryPath) {
-                input.value = WebPod.libraryPath;
-            }
-            dialog.classList.remove('hidden');
-            input.focus();
-        });
-
-        cancelBtn.addEventListener('click', function() {
-            dialog.classList.add('hidden');
-        });
-
-        confirmBtn.addEventListener('click', function() {
-            var path = input.value.trim();
-            if (!path) {
-                WebPod.toast('Please enter a path', 'warning');
-                return;
-            }
-            WebPod.api('/api/library/set-path', {
-                method: 'POST',
-                body: { path: path }
-            }).then(function(data) {
-                WebPod.libraryPath = path;
-                document.getElementById('library-path-display').textContent = path;
-                document.getElementById('scan-btn').disabled = false;
-                dialog.classList.add('hidden');
-                WebPod.toast('Library path set', 'success');
-            });
-        });
     },
 
     /**
@@ -186,23 +148,222 @@ var WebPod = {
         document.getElementById('view-tracks').addEventListener('click', function() {
             WebPod.switchView('tracks');
         });
+        document.getElementById('view-podcasts').addEventListener('click', function() {
+            WebPod.switchView('podcasts');
+        });
         document.getElementById('view-ipod-tracks').addEventListener('click', function() {
             WebPod.switchView('ipod-tracks');
         });
     },
 
     /**
-     * Load initial library path
+     * Load initial library path (legacy)
      */
     loadLibraryPath: function() {
         WebPod.api('/api/library/path').then(function(data) {
             if (data.path) {
                 WebPod.libraryPath = data.path;
-                document.getElementById('library-path-display').textContent = data.path;
-                document.getElementById('scan-btn').disabled = false;
+                var display = document.getElementById('library-path-display');
+                if (display) display.textContent = data.path;
+                var scanBtn = document.getElementById('scan-btn');
+                if (scanBtn) scanBtn.disabled = false;
             }
         }).catch(function() {
             // No path set yet
+        });
+    },
+
+    /**
+     * Load and update settings status indicators
+     */
+    loadSettings: function() {
+        WebPod.api('/api/settings').then(function(data) {
+            // Update music status
+            var musicStatus = document.getElementById('music-status');
+            if (musicStatus) {
+                var musicDot = musicStatus.querySelector('.status-dot');
+                var musicText = musicStatus.querySelector('.status-text');
+                if (data.music_set) {
+                    musicDot.classList.remove('not-set');
+                    musicDot.classList.add('set');
+                    musicText.textContent = data.music_count + ' tracks';
+                } else {
+                    musicDot.classList.remove('set');
+                    musicDot.classList.add('not-set');
+                    musicText.textContent = 'Music library not set';
+                }
+            }
+
+            // Update podcast status
+            var podcastStatus = document.getElementById('podcast-status');
+            if (podcastStatus) {
+                var podcastDot = podcastStatus.querySelector('.status-dot');
+                var podcastText = podcastStatus.querySelector('.status-text');
+                if (data.podcast_set) {
+                    podcastDot.classList.remove('not-set');
+                    podcastDot.classList.add('set');
+                    podcastText.textContent = data.podcast_count + ' episodes';
+                } else {
+                    podcastDot.classList.remove('set');
+                    podcastDot.classList.add('not-set');
+                    podcastText.textContent = 'Podcast library not set';
+                }
+            }
+
+            // Store paths for settings dialog
+            WebPod.musicPath = data.music_path || '';
+            WebPod.podcastPath = data.podcast_path || '';
+        }).catch(function() {
+            // Settings not available
+        });
+    },
+
+    /**
+     * Initialize settings modal
+     */
+    initSettingsModal: function() {
+        var settingsBtn = document.getElementById('settings-btn');
+        var dialog = document.getElementById('settings-dialog');
+        var saveBtn = document.getElementById('settings-save');
+        var closeBtn = document.getElementById('settings-close');
+        var musicInput = document.getElementById('music-path-input');
+        var podcastInput = document.getElementById('podcast-path-input');
+        var musicScanBtn = document.getElementById('music-scan-btn');
+        var podcastScanBtn = document.getElementById('podcast-scan-btn');
+
+        // Open settings dialog
+        settingsBtn.addEventListener('click', function() {
+            musicInput.value = WebPod.musicPath || '';
+            podcastInput.value = WebPod.podcastPath || '';
+            musicScanBtn.disabled = !WebPod.musicPath;
+            podcastScanBtn.disabled = !WebPod.podcastPath;
+            dialog.classList.remove('hidden');
+        });
+
+        // Enable/disable scan buttons based on path input
+        musicInput.addEventListener('input', function() {
+            musicScanBtn.disabled = !musicInput.value.trim();
+        });
+        podcastInput.addEventListener('input', function() {
+            podcastScanBtn.disabled = !podcastInput.value.trim();
+        });
+
+        // Music scan button
+        musicScanBtn.addEventListener('click', function() {
+            // Save path first, then scan
+            var path = musicInput.value.trim();
+            if (!path) return;
+
+            musicScanBtn.disabled = true;
+            musicScanBtn.textContent = 'Scanning...';
+
+            WebPod.api('/api/settings', {
+                method: 'POST',
+                body: { music_path: path }
+            }).then(function() {
+                WebPod.musicPath = path;
+                return WebPod.api('/api/library/scan', { method: 'POST' });
+            }).then(function() {
+                WebPod.toast('Music scan started', 'info');
+            }).catch(function() {
+                musicScanBtn.disabled = false;
+                musicScanBtn.textContent = 'Scan Music';
+            });
+        });
+
+        // Podcast scan button
+        podcastScanBtn.addEventListener('click', function() {
+            var path = podcastInput.value.trim();
+            if (!path) return;
+
+            podcastScanBtn.disabled = true;
+            podcastScanBtn.textContent = 'Scanning...';
+
+            WebPod.api('/api/settings', {
+                method: 'POST',
+                body: { podcast_path: path }
+            }).then(function() {
+                WebPod.podcastPath = path;
+                return WebPod.api('/api/library/scan-podcasts', { method: 'POST' });
+            }).then(function() {
+                WebPod.toast('Podcast scan started', 'info');
+            }).catch(function() {
+                podcastScanBtn.disabled = false;
+                podcastScanBtn.textContent = 'Scan Podcasts';
+            });
+        });
+
+        // Save settings
+        saveBtn.addEventListener('click', function() {
+            var musicPath = musicInput.value.trim();
+            var podcastPath = podcastInput.value.trim();
+
+            WebPod.api('/api/settings', {
+                method: 'POST',
+                body: {
+                    music_path: musicPath,
+                    podcast_path: podcastPath
+                }
+            }).then(function() {
+                WebPod.musicPath = musicPath;
+                WebPod.podcastPath = podcastPath;
+                WebPod.loadSettings();
+                dialog.classList.add('hidden');
+                WebPod.toast('Settings saved', 'success');
+            });
+        });
+
+        // Close dialog
+        closeBtn.addEventListener('click', function() {
+            dialog.classList.add('hidden');
+        });
+
+        // Close on overlay click
+        dialog.addEventListener('click', function(e) {
+            if (e.target === dialog) {
+                dialog.classList.add('hidden');
+            }
+        });
+
+        // Listen for scan progress events
+        WebPod.socket.on('scan_progress', function(data) {
+            var status = document.getElementById('music-scan-status');
+            if (status) {
+                status.textContent = data.scanned + '/' + data.total + ' - ' + data.current_file;
+            }
+        });
+
+        WebPod.socket.on('scan_complete', function(data) {
+            var musicScanBtn = document.getElementById('music-scan-btn');
+            musicScanBtn.disabled = false;
+            musicScanBtn.textContent = 'Scan Music';
+            document.getElementById('music-scan-status').textContent = '';
+            WebPod.loadSettings();
+            WebPod.toast('Music scan complete: ' + data.total_tracks + ' tracks', 'success');
+            if (WebPod.currentView === 'albums') {
+                Library.loadAlbums();
+            } else if (WebPod.currentView === 'tracks') {
+                Library.loadTracks();
+            }
+        });
+
+        WebPod.socket.on('podcast_scan_progress', function(data) {
+            var status = document.getElementById('podcast-scan-status');
+            if (status) {
+                status.textContent = data.scanned + '/' + data.total + ' - ' + data.current_file;
+            }
+        });
+
+        WebPod.socket.on('podcast_scan_complete', function(data) {
+            var podcastScanBtn = document.getElementById('podcast-scan-btn');
+            podcastScanBtn.disabled = false;
+            podcastScanBtn.textContent = 'Scan Podcasts';
+            document.getElementById('podcast-scan-status').textContent = '';
+            WebPod.loadSettings();
+            WebPod.toast('Podcast scan complete: ' + data.total_episodes + ' episodes', 'success');
+            if (WebPod.currentView === 'podcasts') {
+                Podcasts.loadSeries();
+            }
         });
     },
 
@@ -222,12 +383,12 @@ var WebPod = {
         });
 
         // Load initial state
-        WebPod.loadLibraryPath();
+        WebPod.loadSettings();
         IPod.detect();
 
         // Set up UI
         WebPod.initViewToggles();
-        WebPod.initPathDialog();
+        WebPod.initSettingsModal();
         WebPod.initSearch();
         WebPod.initSort();
 

@@ -23,19 +23,31 @@ CREATE TABLE IF NOT EXISTS library_tracks (
     duration_ms  INTEGER,
     bitrate      INTEGER,
     has_artwork  INTEGER DEFAULT 0,
-    artwork_hash TEXT
+    artwork_hash TEXT,
+    is_podcast   INTEGER DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_sha1 ON library_tracks(sha1_hash);
 CREATE INDEX IF NOT EXISTS idx_album ON library_tracks(album);
 CREATE INDEX IF NOT EXISTS idx_artist ON library_tracks(artist);
+CREATE INDEX IF NOT EXISTS idx_is_podcast ON library_tracks(is_podcast);
 
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT
+);
+
+-- Migration: keep old scan_state for backwards compatibility
 CREATE TABLE IF NOT EXISTS scan_state (
     id           INTEGER PRIMARY KEY CHECK (id = 1),
     library_path TEXT NOT NULL,
     last_scan    TEXT
 );
 """
+
+MIGRATIONS = [
+    "ALTER TABLE library_tracks ADD COLUMN is_podcast INTEGER DEFAULT 0",
+]
 
 
 def get_db():
@@ -47,32 +59,70 @@ def get_db():
 
 
 def init_db():
-    """Create tables if they don't exist."""
+    """Create tables if they don't exist and run migrations."""
     conn = get_db()
     conn.executescript(SCHEMA)
     conn.commit()
+
+    # Run migrations (ignore errors for already-applied migrations)
+    for migration in MIGRATIONS:
+        try:
+            conn.execute(migration)
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column/table already exists
+
+    # Migrate old scan_state to settings table
+    row = conn.execute("SELECT library_path FROM scan_state WHERE id = 1").fetchone()
+    if row and row["library_path"]:
+        existing = conn.execute(
+            "SELECT value FROM settings WHERE key = 'music_library_path'"
+        ).fetchone()
+        if not existing:
+            conn.execute(
+                "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                ("music_library_path", row["library_path"])
+            )
+            conn.commit()
+
     conn.close()
 
 
 def set_library_path(path):
-    """Store the library path."""
+    """Store the library path (backwards compatibility)."""
+    set_setting("music_library_path", str(path))
+
+
+def get_library_path():
+    """Get the configured library path (backwards compatibility)."""
+    return get_setting("music_library_path")
+
+
+def get_setting(key):
+    """Get a setting value by key."""
+    conn = get_db()
+    row = conn.execute("SELECT value FROM settings WHERE key = ?", (key,)).fetchone()
+    conn.close()
+    return row["value"] if row else None
+
+
+def set_setting(key, value):
+    """Set a setting value."""
     conn = get_db()
     conn.execute(
-        "INSERT OR REPLACE INTO scan_state (id, library_path) VALUES (1, ?)",
-        (str(path),)
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        (key, str(value) if value else None)
     )
     conn.commit()
     conn.close()
 
 
-def get_library_path():
-    """Get the configured library path, or None."""
+def get_all_settings():
+    """Get all settings as a dict."""
     conn = get_db()
-    row = conn.execute("SELECT library_path FROM scan_state WHERE id = 1").fetchone()
+    rows = conn.execute("SELECT key, value FROM settings").fetchall()
     conn.close()
-    if row:
-        return row["library_path"]
-    return None
+    return {row["key"]: row["value"] for row in rows}
 
 
 def upsert_track(track_data):
@@ -80,16 +130,20 @@ def upsert_track(track_data):
 
     track_data is a dict with keys matching column names.
     """
+    # Ensure is_podcast has a default value
+    if 'is_podcast' not in track_data:
+        track_data['is_podcast'] = 0
+
     conn = get_db()
     conn.execute("""
         INSERT OR REPLACE INTO library_tracks
             (file_path, file_mtime, sha1_hash, title, artist, album,
              album_artist, genre, track_nr, cd_nr, year, duration_ms,
-             bitrate, has_artwork, artwork_hash)
+             bitrate, has_artwork, artwork_hash, is_podcast)
         VALUES
             (:file_path, :file_mtime, :sha1_hash, :title, :artist, :album,
              :album_artist, :genre, :track_nr, :cd_nr, :year, :duration_ms,
-             :bitrate, :has_artwork, :artwork_hash)
+             :bitrate, :has_artwork, :artwork_hash, :is_podcast)
     """, track_data)
     conn.commit()
     conn.close()
@@ -108,7 +162,7 @@ def get_cached_mtime(file_path):
     return None
 
 
-def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None):
+def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, is_podcast=False):
     """Get paginated tracks from the library cache."""
     conn = get_db()
     allowed_sorts = {"artist", "album", "title", "year", "duration_ms", "genre", "track_nr"}
@@ -117,12 +171,15 @@ def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None):
     if order not in ("asc", "desc"):
         order = "asc"
 
-    params = []
-    where = ""
+    # Filter by is_podcast
+    podcast_filter = 1 if is_podcast else 0
+    params = [podcast_filter]
+    where = "WHERE is_podcast = ?"
+
     if search:
-        where = "WHERE title LIKE ? OR artist LIKE ? OR album LIKE ?"
+        where += " AND (title LIKE ? OR artist LIKE ? OR album LIKE ?)"
         like = f"%{search}%"
-        params = [like, like, like]
+        params.extend([like, like, like])
 
     count_row = conn.execute(
         f"SELECT COUNT(*) as cnt FROM library_tracks {where}", params
@@ -139,13 +196,13 @@ def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None):
 
 
 def get_albums():
-    """Get grouped album data for grid view."""
+    """Get grouped album data for grid view (music only, not podcasts)."""
     conn = get_db()
     rows = conn.execute("""
         SELECT album, artist, album_artist, artwork_hash,
                COUNT(*) as track_count, MIN(year) as year
         FROM library_tracks
-        WHERE album IS NOT NULL AND album != ''
+        WHERE album IS NOT NULL AND album != '' AND is_podcast = 0
         GROUP BY album, COALESCE(album_artist, artist)
         ORDER BY COALESCE(album_artist, artist), album
     """).fetchall()
@@ -170,15 +227,22 @@ def get_tracks_by_ids(track_ids):
 def get_all_tracks_for_matching():
     """Get all tracks with id and filepath for M3U matching."""
     conn = get_db()
-    rows = conn.execute("SELECT id, filepath FROM library_tracks").fetchall()
+    rows = conn.execute("SELECT id, file_path as filepath FROM library_tracks").fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
 
-def get_track_count():
+def get_track_count(is_podcast=None):
     """Get total number of tracks in library."""
     conn = get_db()
-    row = conn.execute("SELECT COUNT(*) as cnt FROM library_tracks").fetchone()
+    if is_podcast is None:
+        row = conn.execute("SELECT COUNT(*) as cnt FROM library_tracks").fetchone()
+    else:
+        podcast_filter = 1 if is_podcast else 0
+        row = conn.execute(
+            "SELECT COUNT(*) as cnt FROM library_tracks WHERE is_podcast = ?",
+            (podcast_filter,)
+        ).fetchone()
     conn.close()
     return row["cnt"]
 
@@ -194,3 +258,82 @@ def remove_missing_files():
         conn.commit()
     conn.close()
     return len(missing_ids)
+
+
+# ─── Podcast Functions ────────────────────────────────────────────────
+
+def get_podcast_series():
+    """Get podcast series, grouping by album tag or folder name."""
+    conn = get_db()
+    # Group by album, or if album is empty, extract folder name from path
+    rows = conn.execute("""
+        SELECT
+            CASE
+                WHEN album IS NOT NULL AND album != '' THEN album
+                ELSE REPLACE(
+                    SUBSTR(file_path, 1,
+                        LENGTH(file_path) - LENGTH(
+                            SUBSTR(file_path, LENGTH(RTRIM(file_path, REPLACE(file_path, '/', ''))) + 1)
+                        ) - 1
+                    ),
+                    RTRIM(
+                        SUBSTR(file_path, 1,
+                            LENGTH(file_path) - LENGTH(
+                                SUBSTR(file_path, LENGTH(RTRIM(file_path, REPLACE(file_path, '/', ''))) + 1)
+                            ) - 1
+                        ),
+                        REPLACE(
+                            SUBSTR(file_path, 1,
+                                LENGTH(file_path) - LENGTH(
+                                    SUBSTR(file_path, LENGTH(RTRIM(file_path, REPLACE(file_path, '/', ''))) + 1)
+                                ) - 1
+                            ),
+                            '/',
+                            ''
+                        )
+                    ) || '/',
+                    ''
+                )
+            END as series_name,
+            COUNT(*) as episode_count,
+            artwork_hash,
+            MIN(year) as earliest_year
+        FROM library_tracks
+        WHERE is_podcast = 1
+        GROUP BY series_name
+        ORDER BY series_name
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_podcast_series_simple():
+    """Get podcast series using a simpler grouping (album only, folder as fallback)."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT
+            COALESCE(NULLIF(album, ''), 'Unknown Podcast') as series_name,
+            COUNT(*) as episode_count,
+            MAX(artwork_hash) as artwork_hash,
+            MIN(year) as earliest_year
+        FROM library_tracks
+        WHERE is_podcast = 1
+        GROUP BY series_name
+        ORDER BY series_name
+    """).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_podcast_episodes(series_name):
+    """Get episodes for a podcast series."""
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT *
+        FROM library_tracks
+        WHERE is_podcast = 1
+          AND (album = ? OR (album IS NULL OR album = '') AND ? = 'Unknown Podcast')
+        ORDER BY COALESCE(track_nr, 0) DESC, year DESC, title
+    """, (series_name, series_name)).fetchall()
+    conn.close()
+    return [dict(r) for r in rows]

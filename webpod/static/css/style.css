@@ -635,3 +635,156 @@ body {
     color: var(--text-secondary);
     font-style: italic;
 }
+
+/* ─── Settings Status Indicators ─────────────────── */
+
+.settings-status {
+    margin-top: 12px;
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    margin: 6px 0;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-dot.set {
+    background: var(--success);
+}
+
+.status-dot.not-set {
+    background: var(--danger);
+}
+
+.status-text {
+    color: var(--text-secondary);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+/* ─── Settings Dialog ────────────────────────────── */
+
+.settings-group {
+    margin-bottom: 20px;
+}
+
+.settings-group label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--text-bright);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.path-input-row {
+    display: flex;
+    gap: 8px;
+}
+
+.path-input-row input {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.settings-group-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+}
+
+.scan-status {
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ─── Podcast Series Grid ────────────────────────── */
+
+#podcast-series-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+}
+
+.podcast-card {
+    /* Inherits from .album-card */
+}
+
+.no-content {
+    color: var(--text-secondary);
+    font-size: 14px;
+    padding: 40px;
+    text-align: center;
+}
+
+/* ─── Podcast Episodes Table ─────────────────────── */
+
+#podcast-episodes-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#podcast-episodes-table th {
+    text-align: left;
+    padding: 8px 12px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    background: var(--bg-primary);
+}
+
+#podcast-episodes-table td {
+    padding: 8px 12px;
+    font-size: 13px;
+    border-bottom: 1px solid var(--border-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+}
+
+#podcast-episodes-table tr {
+    cursor: pointer;
+}
+
+#podcast-episodes-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+#podcast-episodes-table tbody tr.selected {
+    background: var(--bg-selected);
+    color: var(--text-bright);
+}
+
+#podcast-series-title {
+    font-size: 18px;
+    color: var(--text-bright);
+    margin: 16px 0;
+}
+
+#podcast-back-btn {
+    margin-bottom: 8px;
+}
+
+.col-year {
+    width: 60px;
+}
