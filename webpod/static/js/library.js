@@ -103,11 +103,13 @@ var Library = {
     /**
      * Load and render track rows
      */
-    loadTracks: function(search, sort) {
+    loadTracks: function(search, sort, album) {
         var sortSelect = document.getElementById('sort-select');
         sort = sort || (sortSelect ? sortSelect.value : 'title');
         var url = '/api/library/tracks?per_page=500&sort=' + encodeURIComponent(sort);
-        if (search) {
+        if (album) {
+            url += '&album=' + encodeURIComponent(album);
+        } else if (search) {
             url += '&search=' + encodeURIComponent(search);
         }
 
@@ -258,7 +260,7 @@ var Library = {
     loadAlbumTracks: function(albumName) {
         WebPod.switchView('tracks');
         document.getElementById('search-input').value = albumName;
-        Library.loadTracks(albumName);
+        Library.loadTracks(null, null, albumName);  // Use exact album filter
     },
 
     /**

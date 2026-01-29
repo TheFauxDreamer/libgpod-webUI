@@ -123,7 +123,8 @@ def library_tracks():
     sort = request.args.get('sort', 'artist')
     order = request.args.get('order', 'asc')
     search = request.args.get('search', None)
-    tracks, total = models.get_tracks(page, per_page, sort, order, search)
+    album = request.args.get('album', None)
+    tracks, total = models.get_tracks(page, per_page, sort, order, search, album)
     return jsonify({"tracks": tracks, "total": total, "page": page, "per_page": per_page})
 
 

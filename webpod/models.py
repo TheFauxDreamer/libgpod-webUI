@@ -162,7 +162,7 @@ def get_cached_mtime(file_path):
     return None
 
 
-def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, is_podcast=False):
+def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, album=None, is_podcast=False):
     """Get paginated tracks from the library cache."""
     conn = get_db()
     allowed_sorts = {"artist", "album", "title", "year", "duration_ms", "genre", "track_nr"}
@@ -176,6 +176,12 @@ def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, is_
     params = [podcast_filter]
     where = "WHERE is_podcast = ?"
 
+    # Exact album filter (for clicking on album cards)
+    if album:
+        where += " AND album = ?"
+        params.append(album)
+
+    # General search across multiple fields
     if search:
         where += " AND (title LIKE ? OR artist LIKE ? OR album LIKE ?)"
         like = f"%{search}%"
