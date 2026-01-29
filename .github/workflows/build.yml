@@ -302,6 +302,17 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
+          # Check if release exists and has empty notes - if so, delete it
+          if gh release view "$TAG" &>/dev/null; then
+            NOTES=$(gh release view "$TAG" --json body -q '.body')
+            if [ -z "$NOTES" ]; then
+              echo "Existing release has empty notes, replacing it..."
+              gh release delete "$TAG" --yes
+            else
+              echo "Existing release has notes, not replacing. Failing."
+              exit 1
+            fi
+          fi
           # Collect all tarballs
           FILES=$(find artifacts -name '*.tar.gz' -type f)
           gh release create "$TAG" \
