@@ -165,11 +165,13 @@
     <div id="settings-dialog" class="dialog-overlay hidden">
         <div class="dialog dialog-wide">
             <h3>Settings</h3>
+            <p class="settings-note">Paths must be on this computer (where WebPod is running).</p>
 
             <div class="settings-group">
                 <label>Music Library Path</label>
                 <div class="path-input-row">
                     <input type="text" id="music-path-input" placeholder="/path/to/music" />
+                    <button id="music-browse-btn" class="btn btn-small">Browse</button>
                 </div>
                 <div class="settings-group-actions">
                     <button id="music-scan-btn" class="btn btn-small" disabled>Scan Music</button>
@@ -181,6 +183,7 @@
                 <label>Podcast Library Path</label>
                 <div class="path-input-row">
                     <input type="text" id="podcast-path-input" placeholder="/path/to/podcasts" />
+                    <button id="podcast-browse-btn" class="btn btn-small">Browse</button>
                 </div>
                 <div class="settings-group-actions">
                     <button id="podcast-scan-btn" class="btn btn-small" disabled>Scan Podcasts</button>
@@ -241,6 +244,37 @@
                 <button id="m3u-cancel" class="btn">Cancel</button>
                 <button id="m3u-import" class="btn btn-primary">Load Playlist</button>
                 <button id="m3u-add-to-ipod" class="btn btn-primary hidden">Add to iPod</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Folder Browser Dialog -->
+    <div id="folder-browser-dialog" class="dialog-overlay hidden">
+        <div class="dialog dialog-wide folder-browser">
+            <div class="folder-browser-header">
+                <h3>Select Folder</h3>
+                <div class="folder-browser-path">
+                    <button id="folder-up-btn" class="btn btn-small" title="Go to parent folder">&#8593; Up</button>
+                    <input type="text" id="folder-path-input" class="folder-path-display" readonly />
+                </div>
+            </div>
+
+            <div class="folder-browser-body">
+                <div class="folder-browser-sidebar">
+                    <h4>Quick Access</h4>
+                    <ul id="folder-quick-access"></ul>
+                </div>
+                <div class="folder-browser-main">
+                    <div id="folder-list" class="folder-list"></div>
+                    <div id="folder-loading" class="folder-loading hidden">Loading...</div>
+                    <div id="folder-error" class="folder-error hidden"></div>
+                    <div id="folder-empty" class="folder-empty hidden">No folders found</div>
+                </div>
+            </div>
+
+            <div class="dialog-actions">
+                <button id="folder-cancel-btn" class="btn">Cancel</button>
+                <button id="folder-select-btn" class="btn btn-primary">Select This Folder</button>
             </div>
         </div>
     </div>

@@ -248,6 +248,14 @@ var WebPod = {
             podcastScanBtn.disabled = !podcastInput.value.trim();
         });
 
+        // Browse buttons
+        document.getElementById('music-browse-btn').addEventListener('click', function() {
+            FolderBrowser.open(musicInput);
+        });
+        document.getElementById('podcast-browse-btn').addEventListener('click', function() {
+            FolderBrowser.open(podcastInput);
+        });
+
         // Music scan button
         musicScanBtn.addEventListener('click', function() {
             // Save path first, then scan
@@ -391,9 +399,210 @@ var WebPod = {
         WebPod.initSettingsModal();
         WebPod.initSearch();
         WebPod.initSort();
+        FolderBrowser.init();
 
         // Default view
         WebPod.switchView('albums');
+    }
+};
+
+/**
+ * Folder Browser module
+ */
+var FolderBrowser = {
+    currentPath: null,
+    targetInput: null,
+
+    /**
+     * Open the folder browser dialog
+     */
+    open: function(targetInput) {
+        FolderBrowser.targetInput = targetInput;
+
+        // Use current input value as starting path, or let API default to home
+        var startPath = targetInput.value.trim() || '';
+        FolderBrowser.loadDirectory(startPath);
+        document.getElementById('folder-browser-dialog').classList.remove('hidden');
+    },
+
+    /**
+     * Close the folder browser dialog
+     */
+    close: function() {
+        document.getElementById('folder-browser-dialog').classList.add('hidden');
+        FolderBrowser.targetInput = null;
+    },
+
+    /**
+     * Load and display directory contents
+     */
+    loadDirectory: function(path) {
+        var folderList = document.getElementById('folder-list');
+        var loading = document.getElementById('folder-loading');
+        var error = document.getElementById('folder-error');
+        var empty = document.getElementById('folder-empty');
+
+        // Show loading state
+        folderList.innerHTML = '';
+        loading.classList.remove('hidden');
+        error.classList.add('hidden');
+        empty.classList.add('hidden');
+
+        // Build URL with optional path parameter
+        var url = '/api/browse';
+        if (path) {
+            url += '?path=' + encodeURIComponent(path);
+        }
+
+        WebPod.api(url)
+            .then(function(data) {
+                loading.classList.add('hidden');
+                FolderBrowser.currentPath = data.current_path;
+
+                // Update path display
+                document.getElementById('folder-path-input').value = data.current_path;
+
+                // Update up button state
+                var upBtn = document.getElementById('folder-up-btn');
+                upBtn.disabled = !data.parent_path;
+                upBtn.dataset.parentPath = data.parent_path || '';
+
+                // Populate quick access
+                FolderBrowser.renderQuickAccess(data.quick_access);
+
+                // Show error if any
+                if (data.error) {
+                    error.textContent = data.error;
+                    error.classList.remove('hidden');
+                }
+
+                // Render folder list
+                if (data.directories && data.directories.length > 0) {
+                    FolderBrowser.renderFolderList(data.directories);
+                } else if (!data.error) {
+                    empty.classList.remove('hidden');
+                }
+            })
+            .catch(function(err) {
+                loading.classList.add('hidden');
+                error.textContent = err.message || 'Failed to load directory';
+                error.classList.remove('hidden');
+            });
+    },
+
+    /**
+     * Render the quick access sidebar
+     */
+    renderQuickAccess: function(paths) {
+        var list = document.getElementById('folder-quick-access');
+        list.innerHTML = '';
+
+        if (!paths) return;
+
+        paths.forEach(function(item) {
+            var li = document.createElement('li');
+            li.textContent = item.name;
+            li.title = item.path;
+            li.addEventListener('click', function() {
+                FolderBrowser.loadDirectory(item.path);
+            });
+            list.appendChild(li);
+        });
+    },
+
+    /**
+     * Render the folder list
+     */
+    renderFolderList: function(directories) {
+        var container = document.getElementById('folder-list');
+        container.innerHTML = '';
+
+        directories.forEach(function(dir) {
+            var item = document.createElement('div');
+            item.className = 'folder-item';
+            item.dataset.path = dir.path;
+
+            var icon = document.createElement('span');
+            icon.className = 'folder-icon';
+            icon.textContent = '\uD83D\uDCC1';  // Folder emoji
+
+            var name = document.createElement('span');
+            name.className = 'folder-name';
+            name.textContent = dir.name;
+            name.title = dir.path;
+
+            item.appendChild(icon);
+            item.appendChild(name);
+
+            // Double-click to navigate into folder
+            item.addEventListener('dblclick', function() {
+                FolderBrowser.loadDirectory(dir.path);
+            });
+
+            // Single click to select
+            item.addEventListener('click', function() {
+                container.querySelectorAll('.folder-item.selected').forEach(function(el) {
+                    el.classList.remove('selected');
+                });
+                item.classList.add('selected');
+            });
+
+            container.appendChild(item);
+        });
+    },
+
+    /**
+     * Navigate to parent directory
+     */
+    goUp: function() {
+        var upBtn = document.getElementById('folder-up-btn');
+        var parentPath = upBtn.dataset.parentPath;
+        if (parentPath) {
+            FolderBrowser.loadDirectory(parentPath);
+        }
+    },
+
+    /**
+     * Select the current folder and close dialog
+     */
+    selectFolder: function() {
+        if (FolderBrowser.currentPath && FolderBrowser.targetInput) {
+            FolderBrowser.targetInput.value = FolderBrowser.currentPath;
+
+            // Trigger input event so other handlers can react
+            var event = new Event('input', { bubbles: true });
+            FolderBrowser.targetInput.dispatchEvent(event);
+        }
+        FolderBrowser.close();
+    },
+
+    /**
+     * Initialize folder browser event listeners
+     */
+    init: function() {
+        // Up button
+        document.getElementById('folder-up-btn').addEventListener('click', FolderBrowser.goUp);
+
+        // Cancel button
+        document.getElementById('folder-cancel-btn').addEventListener('click', FolderBrowser.close);
+
+        // Select button
+        document.getElementById('folder-select-btn').addEventListener('click', FolderBrowser.selectFolder);
+
+        // Close on overlay click
+        var dialog = document.getElementById('folder-browser-dialog');
+        dialog.addEventListener('click', function(e) {
+            if (e.target === dialog) {
+                FolderBrowser.close();
+            }
+        });
+
+        // Close on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && !dialog.classList.contains('hidden')) {
+                FolderBrowser.close();
+            }
+        });
     }
 };
 

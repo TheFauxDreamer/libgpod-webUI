@@ -89,6 +89,97 @@ def save_settings():
     return jsonify({"success": True})
 
 
+# ─── Folder Browser API ───────────────────────────────────────────────
+
+def get_quick_access_paths():
+    """Get OS-appropriate quick access paths for folder browser."""
+    import platform
+    import string
+
+    home = str(Path.home())
+    paths = [{"name": "Home", "path": home}]
+
+    system = platform.system()
+
+    if system == "Darwin":  # macOS
+        paths.extend([
+            {"name": "Music", "path": os.path.join(home, "Music")},
+            {"name": "Downloads", "path": os.path.join(home, "Downloads")},
+            {"name": "Documents", "path": os.path.join(home, "Documents")},
+            {"name": "Volumes", "path": "/Volumes"}
+        ])
+    elif system == "Windows":
+        paths.extend([
+            {"name": "Music", "path": os.path.join(home, "Music")},
+            {"name": "Downloads", "path": os.path.join(home, "Downloads")},
+            {"name": "Documents", "path": os.path.join(home, "Documents")}
+        ])
+        # Add available drive letters
+        for letter in string.ascii_uppercase:
+            drive = f"{letter}:\\"
+            if os.path.exists(drive):
+                paths.append({"name": f"Drive ({letter}:)", "path": drive})
+    else:  # Linux
+        paths.extend([
+            {"name": "Music", "path": os.path.join(home, "Music")},
+            {"name": "Downloads", "path": os.path.join(home, "Downloads")},
+            {"name": "Documents", "path": os.path.join(home, "Documents")},
+            {"name": "Media", "path": "/media"},
+            {"name": "Mount", "path": "/mnt"}
+        ])
+
+    # Filter to only existing paths
+    return [p for p in paths if os.path.exists(p["path"])]
+
+
+@app.route('/api/browse', methods=['GET'])
+def browse_directory():
+    """List directories in a given path for folder browser."""
+    requested_path = request.args.get('path', '').strip()
+
+    # Default to user's home directory
+    if not requested_path:
+        requested_path = str(Path.home())
+
+    # Normalize and resolve the path
+    try:
+        target_path = Path(requested_path).resolve()
+    except (OSError, ValueError) as e:
+        return jsonify({"error": f"Invalid path: {e}"}), 400
+
+    # Check if path exists and is a directory
+    if not target_path.exists():
+        return jsonify({"error": "Path does not exist"}), 404
+    if not target_path.is_dir():
+        return jsonify({"error": "Path is not a directory"}), 400
+
+    # Get parent path (for "go up" functionality)
+    parent_path = str(target_path.parent) if target_path.parent != target_path else None
+
+    # List directories only (not files), hide hidden folders
+    directories = []
+    error_msg = None
+    try:
+        for entry in sorted(target_path.iterdir(), key=lambda e: e.name.lower()):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                directories.append({
+                    'name': entry.name,
+                    'path': str(entry)
+                })
+    except PermissionError:
+        error_msg = "Permission denied"
+    except OSError as e:
+        error_msg = f"Cannot read directory: {e}"
+
+    return jsonify({
+        "current_path": str(target_path),
+        "parent_path": parent_path,
+        "directories": directories,
+        "quick_access": get_quick_access_paths(),
+        "error": error_msg
+    })
+
+
 @app.route('/api/library/scan', methods=['POST'])
 def library_scan():
     path = models.get_library_path()
