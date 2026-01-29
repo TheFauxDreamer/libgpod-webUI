@@ -142,6 +142,7 @@ jobs:
 
       - name: Package artifacts
         run: |
+          cp -r webpod staging/webpod
           cd staging
           tar czf ../${{ matrix.artifact-name }}.tar.gz .
           cd ..
@@ -266,6 +267,7 @@ jobs:
 
       - name: Package artifacts
         run: |
+          cp -r webpod staging/webpod
           cd staging
           tar czf ../${{ matrix.artifact-name }}.tar.gz .
           cd ..
@@ -316,16 +318,13 @@ jobs:
           # Collect all tarballs
           FILES=$(find artifacts -name '*.tar.gz' -type f)
           gh release create "$TAG" \
-            --title "libgpod $TAG" \
-            --notes "Compiled libgpod with Python bindings.
+            --title "WebPod $TAG" \
+            --notes "See the [README](../../blob/master/README.md) for installation instructions.
 
-          ## Included artifacts
-          - Linux x86_64 (Ubuntu 22.04, Python 3.10)
-          - Linux x86_64 (Ubuntu 24.04, Python 3.12)
-          - macOS x86_64 Intel (macOS 15, Python 3.12)
-          - macOS arm64 Apple Silicon (macOS 15, Python 3.12)
-          - Windows x86_64 (MSYS2/MinGW, Python 3.12)
-
-          ## Installation
-          Extract the tarball and copy the files to your system, or set \`LD_LIBRARY_PATH\` / \`DYLD_LIBRARY_PATH\` and \`PYTHONPATH\` to point to the extracted directories." \
+          **Downloads:**
+          - Windows: \`libgpod-windows-x86_64-py3.12.tar.gz\`
+          - macOS Apple Silicon: \`libgpod-macos-arm64-py3.12.tar.gz\`
+          - macOS Intel: \`libgpod-macos-x86_64-py3.12.tar.gz\`
+          - Linux (Ubuntu 24.04): \`libgpod-linux-x86_64-py3.12.tar.gz\`
+          - Linux (Ubuntu 22.04): \`libgpod-linux-x86_64-py3.10.tar.gz\`" \
             $FILES

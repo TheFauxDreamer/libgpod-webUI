@@ -13,6 +13,55 @@ def check_python_version():
         sys.exit(1)
 
 
+def setup_libgpod_paths():
+    """Auto-configure paths to find libgpod in the extracted release."""
+    import os
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(script_dir)
+
+    lib_paths = []
+    python_paths = []
+
+    if sys.platform == 'win32':
+        # Windows: mingw64/bin and mingw64/lib/python3.X/site-packages
+        mingw_bin = os.path.join(parent_dir, 'mingw64', 'bin')
+        if os.path.isdir(mingw_bin):
+            lib_paths.append(mingw_bin)
+        for pyver in ['3.12', '3.11', '3.10']:
+            sp = os.path.join(parent_dir, 'mingw64', 'lib', f'python{pyver}', 'site-packages')
+            if os.path.isdir(sp):
+                python_paths.append(sp)
+                break
+    else:
+        # macOS/Linux: usr/local/lib and usr/local/lib/pythonX.X/site-packages
+        usr_lib = os.path.join(parent_dir, 'usr', 'local', 'lib')
+        if os.path.isdir(usr_lib):
+            lib_paths.append(usr_lib)
+        for pyver in ['3.12', '3.11', '3.10']:
+            sp = os.path.join(usr_lib, f'python{pyver}', 'site-packages')
+            if os.path.isdir(sp):
+                python_paths.append(sp)
+                break
+
+    # Set environment variables for native libraries
+    if lib_paths:
+        if sys.platform == 'darwin':
+            existing = os.environ.get('DYLD_LIBRARY_PATH', '')
+            os.environ['DYLD_LIBRARY_PATH'] = ':'.join(lib_paths + ([existing] if existing else []))
+        elif sys.platform != 'win32':
+            existing = os.environ.get('LD_LIBRARY_PATH', '')
+            os.environ['LD_LIBRARY_PATH'] = ':'.join(lib_paths + ([existing] if existing else []))
+        else:
+            # Windows: add to PATH
+            existing = os.environ.get('PATH', '')
+            os.environ['PATH'] = ';'.join(lib_paths) + ';' + existing
+
+    # Add Python site-packages to import path
+    if python_paths:
+        sys.path[0:0] = python_paths
+
+
 def ensure_dependencies():
     """Check for required packages, install if missing."""
     missing = []
@@ -54,6 +103,7 @@ def open_browser(port):
 
 def main():
     check_python_version()
+    setup_libgpod_paths()
     ensure_dependencies()
 
     # Add parent directory to path so webpod package can be imported

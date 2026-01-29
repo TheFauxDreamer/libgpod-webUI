@@ -1,153 +1,119 @@
-# WARNING CHANGES NOT TESTED
+# WebPod - iPod Web Manager
 
-libgpod is a library meant to abstract access to an iPod content. It
-provides an easy to use API to retrieve the list of files and playlist
-stored on an iPod, to modify them and to save them back to the iPod.
+Manage your iPod's music library through a simple web interface.
 
-This code was originally part of gtkpod (www.gtkpod.org). When the iPod
-content parsing code was made to be self-contained with gtkpod 0.93,
-we chose to put this code in a separate library so that other project
-can benefit from it without duplicating code.
+## Quick Start
 
-Currently (2010-03-23) libgpod supports writing to all "classic" iPod models,
-all iPod Nanos, iPod Minis and iPhones and iPod Touch. iPod Nano 5th Gen. and
-iPhone/iPod Touch support is "partial" in the sense that a database with at
-least one song written by iTunes is needed the first time you use the iPod 
-with libgpod. For these models, it's also highly recommended to get the
-provided udev/hal callout to work for proper support. Older iPod Shuffle models
-are supported, but the new button-less ones (3rd and 4th Gen.) are not. Please
-get in touch if you want to hack on adding support for that.
+### 1. Download
 
-For supported models, covert art and photos are supported in addition to
-manipulating the music database.
+Go to [Releases](../../releases) and download the file for your system:
 
-If you decide to make improvements,  or have bug fixes to report or contribute,
-just drop a mail to Gtkpod-devel@lists.sourceforge.net (due to too much spam,
-the mailing list is unfortunately subscriber-only).
+| Your Computer | Download |
+|---------------|----------|
+| Windows | `libgpod-windows-x86_64-py3.12.tar.gz` |
+| Mac (M1/M2/M3) | `libgpod-macos-arm64-py3.12.tar.gz` |
+| Mac (Intel) | `libgpod-macos-x86_64-py3.12.tar.gz` |
+| Linux (Ubuntu 24.04) | `libgpod-linux-x86_64-py3.12.tar.gz` |
+| Linux (Ubuntu 22.04) | `libgpod-linux-x86_64-py3.10.tar.gz` |
 
-----------------------------------------------------------------------
+### 2. Extract
 
-Quick HOWTO use libgpod for audio
+**Windows:** Right-click the file → Extract All
 
-itdb_parse(): read the iTunesDB and ArtworkDB
-itdb_write(): write the iTunesDB and ArtworkDB
+**Mac:** Double-click the file
 
-itdb_parse() will return a Itdb_iTunesDB structure with GLists
-containing all tracks (each track is represented by a Itdb_Track
-structure) and the playlists (each playlist is represented by a
-Itdb_Playlist structure).
+**Linux:** Double-click the file, or run `tar -xzf libgpod-*.tar.gz`
 
-A number of functions for adding, removing, duplicating tracks are
-available. Please see itdb.h for details (itdb_track_*()).
+### 3. Run WebPod
 
-In each Itdb_Playlist structure you can find a GList called 'members'
-with listing all member tracks. Each track referenced in a playlist
-must also be present in the tracks GList of the iTunesDB.
+Open a terminal/command prompt in the extracted folder and run:
 
-The iPod must contain one master playlist (MPL) containing all tracks
-accessible on the iPod through the
-Music->Tracks/Albums/Artists... menu. Besides the MPL there can be a
-number of normal playlists accessible through the Music->Playlists
-menu on the iPod. Tracks that are a member of one of these normal
-playlists must also be a member of the MPL.
+```
+python webpod/run.py
+```
 
-The Podcasts playlist is just another playlist with some internal
-flags set differently. Also, member tracks in the Podcasts playlist
-are not normally members of the MPL (so on the iPod they will only
-show up under the Podcasts menu). All tracks referenced must be in the
-tracklist of the Itdb_iTunesDB, however.
+Your browser will open automatically to http://localhost:5000
 
-A number of functions to add/remove playlists, or add/remove tracks
-are available. Please see itdb.h for details (itdb_playlist_*()).
+### 4. Connect Your iPod
 
-Each track can have a thumbnail associated with it. You can retrieve a
-GdkPixmap of the thumbnail using itdb_artwork_get_pixbuf().  You can
-remove a thumbnail with itdb_track_remove_thumbnails(). And finally,
-you can set a new thumbnail using itdb_track_set_thumbnails().
+1. Plug in your iPod
+2. Wait for it to appear in your file manager
+3. Click "Detect iPod" in WebPod
+4. Select your iPod and start managing your music!
 
-Please note that iTunes additionally stores the artwork as tags in the
-original music file. That's also from where the data is read when
-artwork is displayed in iTunes, and there can be more than one piece
-of artwork. libgpod does not store the artwork as tags in the original
-music file. As a consequence, if iTunes attempts to access the
-artwork, it will find none, and remove libgpod's artwork. Luckily,
-iTunes will only attempt to access the artwork if you select a track
-in iTunes. (To work around this, gtkpod keeps a list of the original
-filename of all artwork and silently adds the thumbnails if they were
-'lost'. Your application might want to do something similar, or you
-can supply patches for (optionally!) adding tags to the original music
-files.)
+---
 
-The Itdb_iTunesDB, Itdb_Playlist and Itdb_Track structures each have a
-userdata and a usertype field that can be used by the application to
-store application-specific additional data. If userdata is a pointer
-to an external structure, you can supply a ItdbUserDataDuplicateFunc
-and a ItdbUserDataDestroyFunc so that this data can be duplicated
-or freed automatically with a call to the library _duplicate()/_free()
-functions.
+## Troubleshooting
 
-For more information I would advice to have a look at gtkpod's source
-code. You can also ask questions on the developer's mailing list:
-gtkpod-devel at lists dot sourceforge dot net
+**"python" not found**
+- Download Python from https://python.org
+- Windows: Make sure to check "Add Python to PATH" during installation
 
+**iPod not detected**
+- Make sure your iPod shows up in File Explorer / Finder first
+- Try unplugging and reconnecting
 
-Jörg Schuler (jcsjcs at users dot sourceforge dot net)
+**Linux: Permission denied**
+- Add yourself to the plugdev group: `sudo usermod -a -G plugdev $USER`
+- Log out and back in
 
-----------------------------------------------------------------------
+---
 
-Quick HOWTO use libgpod for photos
+## For Developers
 
-   itdb_photodb_parse():
-       Read an existing PhotoDB.
+### About libgpod
 
-   itdb_photodb_create():
-       Create a new Itdb_PhotoDB structure. The Photo Library Album is
-       (first album) is created automatically.
+libgpod is a library for reading and writing the iTunes database on iPods. It supports:
+- All "classic" iPod models, iPod Nano, iPod Mini
+- iPhone and iPod Touch (partial - requires iTunes-initialized database)
+- Cover art and photos
+- Playlists and track metadata
 
-   itdb_photodb_add_photo(), itdb_photodb_add_photo_from_data():
-       Add a photo to the PhotoDB (from file or from a chunk of
-       memory). It is automatically added to the Photo Library Album
-       (first album), which is created if it does not exist already.
+### Building from Source
 
-   itdb_photodb_photoalbum_create():
-       Create and add a new photoalbum.
+```bash
+# Install dependencies (Ubuntu)
+sudo apt-get install libglib2.0-dev libsqlite3-dev libplist-dev \
+    libgdk-pixbuf-2.0-dev libxml2-dev swig python3-dev
 
-   itdb_photodb_photoalbum_add_photo():
-       Add a photo (Itdb_Artwork) to an existing photoalbum.
+# Build
+autoreconf -fi
+./configure --with-python
+make
+make install
+```
 
-   itdb_photodb_photoalbum_remove():
-       Remove an existing photoalbum. Pictures can be kept in the
-       Photo Library or automatically removed as well.
+### Python API Example
 
-   itdb_photodb_remove_photo():
-       Remove a photo either from a photoalbum or completely from the database.
+```python
+import gpod
 
-   itdb_photodb_write():
-       Write out your PhotoDB.
+# Open iPod database
+db = gpod.Database('/path/to/ipod/mount')
 
-   itdb_photodb_free():
-       Free all memory taken by the PhotoDB.
+# List all tracks
+for track in db:
+    print(f"{track.artist} - {track.title}")
 
-   itdb_photodb_photoalbum_by_name():
-       Find the first photoalbum with a given name or the Photo
-       Library Album if called with no name.
+# Add a track
+track = db.new_Track()
+track.copy_to_ipod('/path/to/song.mp3')
+db.copy_delayed_files()
+db.close()
+```
 
+### Documentation
 
-If you cannot add photos because your iPod is not recognized, you may
-have to set the iPod model by calling
+- [README.overview](README.overview) - Architecture overview
+- [README.SysInfo](README.SysInfo) - Device information
+- [README.sqlite](README.sqlite) - SQLite database format
 
-itdb_device_set_sysinfo (db->device, "ModelNumStr", model);
+---
 
-For example, "MA450" would stand for an 80 GB 6th generation iPod
-Video. See itdb_device.c for a list of supported models.
+## License
 
-This information will be written to the iPod when the PhotoDB is saved
-(itdb_device_write_sysinfo() is called).
+libgpod is licensed under the LGPL. See COPYING for details.
 
-Have a look at the following test-photos test program in the tests/
-subdirectory for an example of how to use the interface.
+## Credits
 
-
-Jörg Schuler (jcsjcs at users dot sourceforge dot net)
-
-----------------------------------------------------------------------
+Originally part of [gtkpod](http://www.gtkpod.org). WebPod interface added for modern web-based iPod management.
