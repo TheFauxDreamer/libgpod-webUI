@@ -11,7 +11,7 @@ class ArtworkCache {
     private init() {
         let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
         cacheDirectory = appSupport
-            .appendingPathComponent("iPodManager")
+            .appendingPathComponent("PodManager")
             .appendingPathComponent("ArtworkCache")
 
         try? fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)

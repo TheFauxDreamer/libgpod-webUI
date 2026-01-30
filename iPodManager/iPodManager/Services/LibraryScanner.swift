@@ -5,33 +5,39 @@ import CryptoKit
 class LibraryScanner {
     static let shared = LibraryScanner()
 
-    private let supportedExtensions = ["mp3", "m4a", "aac", "mp4", "wav", "aiff"]
+    private let supportedExtensions = ["mp3", "m4a", "aac", "mp4", "wav", "aiff", "flac", "alac"]
     private let fileManager = FileManager.default
 
-    struct ScanProgress {
-        let scanned: Int
-        let total: Int
-        let currentFile: String
-    }
-
     /// Scan a directory for audio files
+    /// - Parameters:
+    ///   - directory: The folder to scan
+    ///   - isPodcast: Whether these are podcast files
+    ///   - progress: Callback with progress from 0.0 to 1.0
+    /// - Returns: Array of Track objects with metadata
     func scan(
         directory: URL,
         isPodcast: Bool = false,
-        progress: @escaping (ScanProgress) -> Void
-    ) async throws -> [Track] {
+        progress: @escaping (Double) -> Void
+    ) async -> [Track] {
         var tracks: [Track] = []
         var trackId = 1
 
+        print("LibraryScanner: Starting scan of \(directory.path)")
+
         // Find all audio files
         let audioFiles = findAudioFiles(in: directory)
+        print("LibraryScanner: Found \(audioFiles.count) audio files")
+
+        guard !audioFiles.isEmpty else {
+            print("LibraryScanner: No audio files found")
+            progress(1.0)
+            return []
+        }
 
         for (index, fileURL) in audioFiles.enumerated() {
-            progress(ScanProgress(
-                scanned: index,
-                total: audioFiles.count,
-                currentFile: fileURL.lastPathComponent
-            ))
+            // Report progress
+            let progressValue = Double(index) / Double(audioFiles.count)
+            progress(progressValue)
 
             if let track = await extractMetadata(from: fileURL, id: trackId, isPodcast: isPodcast) {
                 tracks.append(track)
@@ -39,7 +45,8 @@ class LibraryScanner {
             }
         }
 
-        progress(ScanProgress(scanned: audioFiles.count, total: audioFiles.count, currentFile: ""))
+        print("LibraryScanner: Scan complete, found \(tracks.count) tracks with metadata")
+        progress(1.0)
         return tracks
     }
 
@@ -102,12 +109,38 @@ class LibraryScanner {
                 }
             }
 
+            // Also try iTunes-specific metadata
+            let iTunesMetadata = try? await asset.load(.metadata)
+            if let iTunesMeta = iTunesMetadata {
+                for item in iTunesMeta {
+                    if let identifier = item.identifier {
+                        switch identifier {
+                        case .iTunesMetadataAlbumArtist:
+                            albumArtist = try? await item.load(.stringValue)
+                        case .iTunesMetadataTrackNumber:
+                            if let value = try? await item.load(.numberValue) {
+                                trackNumber = value.intValue
+                            }
+                        case .iTunesMetadataDiscNumber:
+                            if let value = try? await item.load(.numberValue) {
+                                discNumber = value.intValue
+                            }
+                        case .id3MetadataContentType, .iTunesMetadataUserGenre:
+                            genre = try? await item.load(.stringValue)
+                        case .id3MetadataYear, .iTunesMetadataReleaseDate:
+                            if let yearStr = try? await item.load(.stringValue),
+                               let yearInt = Int(yearStr.prefix(4)) {
+                                year = yearInt
+                            }
+                        default:
+                            break
+                        }
+                    }
+                }
+            }
+
             // Calculate SHA1 hash of first 16KB for duplicate detection
             let sha1Hash = calculateSHA1(of: fileURL)
-
-            // Get file modification time
-            let attributes = try? fileManager.attributesOfItem(atPath: fileURL.path)
-            let modTime = attributes?[.modificationDate] as? Date
 
             // Calculate duration in milliseconds
             let durationMs = Int(CMTimeGetSeconds(duration) * 1000)
