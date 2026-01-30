@@ -318,7 +318,7 @@ case $REQUIRED_AUTOMAKE_VERSION in
     1.4*) automake_progs="automake-1.4" ;;
     1.5*) automake_progs="automake-1.11 automake-1.10 automake-1.9 automake-1.8 automake-1.7 automake-1.6 automake-1.5" ;;
     1.6*) automake_progs="automake-1.11 automake-1.10 automake-1.9 automake-1.8 automake-1.7 automake-1.6" ;;
-    1.7*) automake_progs="automake-1.11 automake-1.10 automake-1.9 automake-1.8 automake-1.7" ;;
+    1.7*) automake_progs="automake automake-1.11 automake-1.10 automake-1.9 automake-1.8 automake-1.7" ;;
     1.8*) automake_progs="automake-1.11 automake-1.10 automake-1.9 automake-1.8" ;;
     1.9*) automake_progs="automake-1.11 automake-1.10 automake-1.9" ;;
     1.10*) automake_progs="automake-1.11 automake-1.10" ;;
@@ -329,7 +329,7 @@ version_check automake AUTOMAKE "$automake_progs" $REQUIRED_AUTOMAKE_VERSION \
 ACLOCAL=`echo $AUTOMAKE | sed s/automake/aclocal/`
 
 if $want_libtool; then
-    version_check libtool LIBTOOLIZE libtoolize $REQUIRED_LIBTOOL_VERSION \
+    version_check libtool LIBTOOLIZE "glibtoolize libtoolize" $REQUIRED_LIBTOOL_VERSION \
         "http://ftp.gnu.org/pub/gnu/libtool/libtool-$REQUIRED_LIBTOOL_VERSION.tar.gz"
     require_m4macro libtool.m4
 fi
