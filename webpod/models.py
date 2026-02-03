@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 DB_PATH = Path(__file__).parent / "library.db"
+DEFAULT_EXPORT_PATH = str(Path(__file__).parent / "export")
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS library_tracks (

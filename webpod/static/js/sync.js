@@ -5,6 +5,7 @@
 var Sync = {
     syncing: false,
     scanning: false,
+    exporting: false,
 
     /**
      * Start a sync operation
@@ -142,6 +143,36 @@ var Sync = {
                 } else if (WebPod.currentView === 'tracks') {
                     Library.loadTracks();
                 }
+            });
+
+            // Export progress
+            WebPod.socket.on('export_progress', function(data) {
+                Sync.exporting = true;
+                var exported = data.exported || 0;
+                var total = data.total || 1;
+                var percent = Math.round((exported / total) * 100);
+                var track = data.track || '';
+                var text = 'Exporting: ' + exported + '/' + total;
+                if (track) text += ' - ' + track;
+                Sync.showProgress(text, percent);
+            });
+
+            // Export complete
+            WebPod.socket.on('export_complete', function(data) {
+                Sync.exporting = false;
+                Sync.hideProgress();
+
+                var msg = 'Export complete: ' + data.exported + ' tracks exported';
+                if (data.skipped > 0) msg += ', ' + data.skipped + ' skipped';
+                if (data.errors > 0) msg += ', ' + data.errors + ' errors';
+                WebPod.toast(msg, 'success');
+            });
+
+            // Export error
+            WebPod.socket.on('export_error', function(data) {
+                Sync.exporting = false;
+                Sync.hideProgress();
+                WebPod.toast('Export error: ' + data.message, 'error');
             });
         };
 

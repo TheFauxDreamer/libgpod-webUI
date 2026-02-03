@@ -4,6 +4,9 @@ This module manages the iPod database connection lifecycle and provides
 thread-safe methods for all iPod operations used by the web interface.
 """
 
+import os
+import re
+import shutil
 import threading
 
 try:
@@ -283,6 +286,120 @@ class IPodManager:
                 self._db = None
                 self._mountpoint = None
                 raise IPodError(f"Failed to re-open iPod after sync: {e}")
+
+    def export_tracks(self, destination_path, progress_callback=None):
+        """Export all tracks from iPod to destination folder.
+
+        Args:
+            destination_path: Directory to export tracks to
+            progress_callback: Optional function(exported, total, track_info)
+
+        Returns:
+            dict with 'exported', 'skipped', 'errors' counts
+        """
+        with self._lock:
+            self._require_connected()
+
+            # Create destination directory if it doesn't exist
+            os.makedirs(destination_path, exist_ok=True)
+
+            total = len(self._db)
+            exported = 0
+            skipped = 0
+            errors = []
+
+            for i in range(total):
+                track = self._db[i]
+                artist = track['artist'] or 'Unknown Artist'
+                album = track['album'] or 'Unknown Album'
+                title = track['title'] or 'Unknown'
+
+                # Get source file path on iPod
+                try:
+                    source_path = track.ipod_filename()
+                except Exception:
+                    source_path = None
+
+                if not source_path or not os.path.exists(source_path):
+                    errors.append({
+                        'title': title,
+                        'artist': artist,
+                        'error': 'File not found on iPod'
+                    })
+                    if progress_callback:
+                        progress_callback(i + 1, total, f"{artist} - {title}")
+                    continue
+
+                # Get file extension from source
+                _, ext = os.path.splitext(source_path)
+                if not ext:
+                    ext = '.mp3'  # Default extension
+
+                # Sanitize names for filesystem
+                safe_artist = self._sanitize_filename(artist)
+                safe_album = self._sanitize_filename(album)
+                safe_title = self._sanitize_filename(title)
+
+                # Create artist/album directory structure
+                dest_dir = os.path.join(destination_path, safe_artist, safe_album)
+                os.makedirs(dest_dir, exist_ok=True)
+
+                # Build destination filename
+                dest_filename = f"{safe_title}{ext}"
+                dest_path = os.path.join(dest_dir, dest_filename)
+
+                # Handle duplicate filenames by adding track number or counter
+                if os.path.exists(dest_path):
+                    # Check if it's the same file (same size)
+                    try:
+                        if os.path.getsize(source_path) == os.path.getsize(dest_path):
+                            skipped += 1
+                            if progress_callback:
+                                progress_callback(i + 1, total, f"{artist} - {title}")
+                            continue
+                    except OSError:
+                        pass
+
+                    # Different file, add counter
+                    counter = 1
+                    base_name = safe_title
+                    while os.path.exists(dest_path):
+                        dest_filename = f"{base_name} ({counter}){ext}"
+                        dest_path = os.path.join(dest_dir, dest_filename)
+                        counter += 1
+
+                # Copy the file
+                try:
+                    shutil.copy2(source_path, dest_path)
+                    exported += 1
+                except Exception as e:
+                    errors.append({
+                        'title': title,
+                        'artist': artist,
+                        'error': str(e)
+                    })
+
+                if progress_callback:
+                    progress_callback(i + 1, total, f"{artist} - {title}")
+
+            return {
+                'exported': exported,
+                'skipped': skipped,
+                'errors': len(errors),
+                'error_details': errors[:10]  # Limit error details
+            }
+
+    def _sanitize_filename(self, name):
+        """Sanitize a string for use as a filename."""
+        # Remove or replace invalid characters
+        sanitized = re.sub(r'[<>:"/\\|?*]', '_', name)
+        # Remove leading/trailing spaces and dots
+        sanitized = sanitized.strip(' .')
+        # Limit length
+        if len(sanitized) > 200:
+            sanitized = sanitized[:200]
+        # Ensure not empty
+        return sanitized or 'Unknown'
 
     # --- Private helpers ---
 

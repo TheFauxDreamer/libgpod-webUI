@@ -59,9 +59,11 @@ def get_settings():
     """Get all settings including library paths."""
     music_path = models.get_setting('music_library_path')
     podcast_path = models.get_setting('podcast_library_path')
+    export_path = models.get_setting('export_path') or models.DEFAULT_EXPORT_PATH
     return jsonify({
         'music_path': music_path,
         'podcast_path': podcast_path,
+        'export_path': export_path,
         'music_set': bool(music_path),
         'podcast_set': bool(podcast_path),
         'music_count': models.get_track_count(is_podcast=False),
@@ -85,6 +87,11 @@ def save_settings():
         if path and not Path(path).is_dir():
             return jsonify({"error": f"Podcast directory not found: {path}"}), 400
         models.set_setting('podcast_library_path', path if path else None)
+
+    if 'export_path' in data:
+        path = data['export_path'].strip() if data['export_path'] else ''
+        # Export path doesn't need to exist yet - it will be created on export
+        models.set_setting('export_path', path if path else None)
 
     return jsonify({"success": True})
 
@@ -377,6 +384,35 @@ def ipod_sync():
 
     socketio.start_background_task(_sync)
     return jsonify({"status": "syncing"})
+
+
+@app.route('/api/ipod/export', methods=['POST'])
+def ipod_export():
+    """Export all music from iPod to destination folder."""
+    if not ipod.connected:
+        return jsonify({"error": "No iPod connected"}), 400
+
+    # Get export path from settings or use default
+    export_path = models.get_setting('export_path') or models.DEFAULT_EXPORT_PATH
+
+    def _export():
+        def progress(exported, total, track_info):
+            socketio.emit('export_progress', {
+                'exported': exported,
+                'total': total,
+                'track': track_info,
+            })
+
+        try:
+            result = ipod.export_tracks(export_path, progress_callback=progress)
+            socketio.emit('export_complete', result)
+        except IPodError as e:
+            socketio.emit('export_error', {'message': str(e)})
+        except Exception as e:
+            socketio.emit('export_error', {'message': str(e)})
+
+    socketio.start_background_task(_export)
+    return jsonify({"status": "exporting", "destination": export_path})
 
 
 def run(port=5000, debug=False):

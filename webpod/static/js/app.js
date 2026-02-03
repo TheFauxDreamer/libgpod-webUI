@@ -223,6 +223,7 @@ var WebPod = {
             // Store paths for settings dialog
             WebPod.musicPath = data.music_path || '';
             WebPod.podcastPath = data.podcast_path || '';
+            WebPod.exportPath = data.export_path || '';
         }).catch(function() {
             // Settings not available
         });
@@ -238,15 +239,20 @@ var WebPod = {
         var closeBtn = document.getElementById('settings-close');
         var musicInput = document.getElementById('music-path-input');
         var podcastInput = document.getElementById('podcast-path-input');
+        var exportInput = document.getElementById('export-path-input');
         var musicScanBtn = document.getElementById('music-scan-btn');
         var podcastScanBtn = document.getElementById('podcast-scan-btn');
+        var exportBtn = document.getElementById('export-btn');
 
         // Open settings dialog
         settingsBtn.addEventListener('click', function() {
             musicInput.value = WebPod.musicPath || '';
             podcastInput.value = WebPod.podcastPath || '';
+            exportInput.value = WebPod.exportPath || '';
             musicScanBtn.disabled = !WebPod.musicPath;
             podcastScanBtn.disabled = !WebPod.podcastPath;
+            // Export button enabled only if iPod is connected
+            exportBtn.disabled = !IPod.connected;
             dialog.classList.remove('hidden');
         });
 
@@ -303,20 +309,52 @@ var WebPod = {
             });
         });
 
+        // Export button
+        exportBtn.addEventListener('click', function() {
+            if (!IPod.connected) {
+                WebPod.toast('No iPod connected', 'error');
+                return;
+            }
+
+            // Save export path first
+            var path = exportInput.value.trim();
+            if (path) {
+                WebPod.api('/api/settings', {
+                    method: 'POST',
+                    body: { export_path: path }
+                }).then(function() {
+                    WebPod.exportPath = path;
+                });
+            }
+
+            exportBtn.disabled = true;
+            exportBtn.textContent = 'Exporting...';
+
+            WebPod.api('/api/ipod/export', { method: 'POST' }).then(function(data) {
+                WebPod.toast('Export started to ' + data.destination, 'info');
+            }).catch(function() {
+                exportBtn.disabled = false;
+                exportBtn.textContent = 'Export All Music from iPod';
+            });
+        });
+
         // Save settings and auto-scan
         saveBtn.addEventListener('click', function() {
             var musicPath = musicInput.value.trim();
             var podcastPath = podcastInput.value.trim();
+            var exportPath = exportInput.value.trim();
 
             WebPod.api('/api/settings', {
                 method: 'POST',
                 body: {
                     music_path: musicPath,
-                    podcast_path: podcastPath
+                    podcast_path: podcastPath,
+                    export_path: exportPath
                 }
             }).then(function() {
                 WebPod.musicPath = musicPath;
                 WebPod.podcastPath = podcastPath;
+                WebPod.exportPath = exportPath;
                 WebPod.loadSettings();
                 dialog.classList.add('hidden');
                 WebPod.toast('Settings saved', 'success');
@@ -394,6 +432,33 @@ var WebPod = {
             if (WebPod.currentView === 'podcasts') {
                 Podcasts.loadSeries();
             }
+        });
+
+        // Export progress events
+        WebPod.socket.on('export_progress', function(data) {
+            var status = document.getElementById('export-status');
+            if (status) {
+                status.textContent = data.exported + '/' + data.total + ' - ' + data.track;
+            }
+        });
+
+        WebPod.socket.on('export_complete', function(data) {
+            var exportBtn = document.getElementById('export-btn');
+            exportBtn.disabled = !IPod.connected;
+            exportBtn.textContent = 'Export All Music from iPod';
+            document.getElementById('export-status').textContent = '';
+            var msg = 'Export complete: ' + data.exported + ' exported';
+            if (data.skipped > 0) msg += ', ' + data.skipped + ' skipped';
+            if (data.errors > 0) msg += ', ' + data.errors + ' errors';
+            WebPod.toast(msg, 'success');
+        });
+
+        WebPod.socket.on('export_error', function(data) {
+            var exportBtn = document.getElementById('export-btn');
+            exportBtn.disabled = !IPod.connected;
+            exportBtn.textContent = 'Export All Music from iPod';
+            document.getElementById('export-status').textContent = '';
+            WebPod.toast('Export error: ' + data.message, 'error');
         });
     },
 
