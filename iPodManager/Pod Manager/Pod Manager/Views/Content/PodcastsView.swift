@@ -85,7 +85,7 @@ struct PodcastsView: View {
                             PodcastSeriesCard(series: series)
                                 .onTapGesture {
                                     selectedSeries = series
-                                    // TODO: Load episodes for this series
+                                    episodes = LibraryDatabase.shared.loadPodcastEpisodes(forSeries: series.seriesName)
                                 }
                         }
                     }

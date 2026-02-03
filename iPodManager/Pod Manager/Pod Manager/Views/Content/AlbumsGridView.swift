@@ -2,6 +2,7 @@ import SwiftUI
 
 struct AlbumsGridView: View {
     @ObservedObject var viewModel: LibraryViewModel
+    @ObservedObject var ipodVM: IPodViewModel
     let searchText: String
 
     @State private var selectedAlbum: Album? = nil
@@ -77,6 +78,27 @@ struct AlbumsGridView: View {
                                                 .onTapGesture {
                                                     selectAlbum(album)
                                                 }
+                                                .contextMenu {
+                                                    Button("Add to iPod") {
+                                                        Task {
+                                                            await addAlbum(album, to: nil)
+                                                        }
+                                                    }
+
+                                                    if ipodVM.isConnected && !ipodVM.playlists.filter({ !$0.isMaster }).isEmpty {
+                                                        Divider()
+
+                                                        Menu("Add to Playlist") {
+                                                            ForEach(ipodVM.playlists.filter { !$0.isMaster && !$0.isPodcast }) { playlist in
+                                                                Button(playlist.displayName) {
+                                                                    Task {
+                                                                        await addAlbum(album, to: playlist.id)
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                         }
                                         Spacer()
                                     }
@@ -136,6 +158,13 @@ struct AlbumsGridView: View {
                 albumTracks = filtered
             }
         }
+    }
+
+    private func addAlbum(_ album: Album, to playlistId: Int?) async {
+        let tracks = LibraryDatabase.shared.loadTracks(isPodcast: false)
+            .filter { $0.album == album.album }
+        let paths = tracks.map { $0.filePath }
+        try? await ipodVM.addTracks(paths, to: playlistId)
     }
 }
 
@@ -343,5 +372,5 @@ struct AlbumCardView: View {
 }
 
 #Preview {
-    AlbumsGridView(viewModel: LibraryViewModel(), searchText: "")
+    AlbumsGridView(viewModel: LibraryViewModel(), ipodVM: IPodViewModel(), searchText: "")
 }

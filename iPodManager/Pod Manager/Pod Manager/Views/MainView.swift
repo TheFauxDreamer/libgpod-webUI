@@ -30,15 +30,20 @@ struct MainView: View {
                 Divider()
 
                 // Main content
-                switch selectedView {
-                case .albums:
-                    AlbumsGridView(viewModel: libraryVM, searchText: searchText)
-                case .tracks:
-                    TracksTableView(viewModel: libraryVM, searchText: searchText)
-                case .podcasts:
-                    PodcastsView(viewModel: libraryVM, searchText: searchText)
-                case .ipodTracks:
-                    IPodTracksView(viewModel: ipodVM)
+                if let playlistId = ipodVM.selectedPlaylistId {
+                    // Show playlist tracks when a playlist is selected
+                    PlaylistTracksView(viewModel: ipodVM, playlistId: playlistId)
+                } else {
+                    switch selectedView {
+                    case .albums:
+                        AlbumsGridView(viewModel: libraryVM, ipodVM: ipodVM, searchText: searchText)
+                    case .tracks:
+                        TracksTableView(viewModel: libraryVM, ipodVM: ipodVM, searchText: searchText)
+                    case .podcasts:
+                        PodcastsView(viewModel: libraryVM, searchText: searchText)
+                    case .ipodTracks:
+                        IPodTracksView(viewModel: ipodVM)
+                    }
                 }
             }
         }

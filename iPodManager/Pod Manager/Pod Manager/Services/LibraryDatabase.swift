@@ -264,6 +264,52 @@ class LibraryDatabase {
         return series
     }
 
+    // MARK: - Load Podcast Episodes
+
+    func loadPodcastEpisodes(forSeries seriesName: String) -> [Track] {
+        let query = """
+        SELECT * FROM library_tracks
+        WHERE is_podcast = 1 AND album = ?
+        ORDER BY year DESC, title
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+            return []
+        }
+
+        defer { sqlite3_finalize(statement) }
+
+        sqlite3_bind_text(statement, 1, (seriesName as NSString).utf8String, -1, SQLITE_TRANSIENT)
+
+        var tracks: [Track] = []
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            let track = Track(
+                id: Int(sqlite3_column_int(statement, 0)),
+                filePath: String(cString: sqlite3_column_text(statement, 1)),
+                sha1Hash: columnText(statement, 3),
+                title: columnText(statement, 4),
+                artist: columnText(statement, 5),
+                album: columnText(statement, 6),
+                albumArtist: columnText(statement, 7),
+                genre: columnText(statement, 8),
+                trackNumber: columnInt(statement, 10),
+                discNumber: columnInt(statement, 11),
+                year: columnInt(statement, 12),
+                durationMs: columnInt(statement, 9),
+                bitrate: columnInt(statement, 13),
+                hasArtwork: sqlite3_column_int(statement, 14) == 1,
+                artworkHash: columnText(statement, 15),
+                isPodcast: sqlite3_column_int(statement, 16) == 1
+            )
+            tracks.append(track)
+        }
+
+        print("LibraryDatabase: Loaded \(tracks.count) episodes for '\(seriesName)'")
+        return tracks
+    }
+
     // MARK: - Utility
 
     func trackCount(isPodcast: Bool = false) -> Int {

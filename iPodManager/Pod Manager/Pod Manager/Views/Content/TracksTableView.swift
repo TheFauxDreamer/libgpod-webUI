@@ -2,6 +2,7 @@ import SwiftUI
 
 struct TracksTableView: View {
     @ObservedObject var viewModel: LibraryViewModel
+    @ObservedObject var ipodVM: IPodViewModel
     let searchText: String
     @State private var sortOrder = [KeyPathComparator(\Track.artist)]
 
@@ -53,15 +54,35 @@ struct TracksTableView: View {
                 if !selection.isEmpty {
                     Button("Add to iPod") {
                         Task {
-                            await viewModel.addTracksToIPod(Array(selection))
+                            await addSelectedTracks(selection, to: nil)
+                        }
+                    }
+
+                    if ipodVM.isConnected && !ipodVM.playlists.filter({ !$0.isMaster }).isEmpty {
+                        Divider()
+
+                        Menu("Add to Playlist") {
+                            ForEach(ipodVM.playlists.filter { !$0.isMaster && !$0.isPodcast }) { playlist in
+                                Button(playlist.displayName) {
+                                    Task {
+                                        await addSelectedTracks(selection, to: playlist.id)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
     }
+
+    private func addSelectedTracks(_ trackIds: Set<Int>, to playlistId: Int?) async {
+        let tracks = filteredTracks.filter { trackIds.contains($0.id) }
+        let paths = tracks.map { $0.filePath }
+        try? await ipodVM.addTracks(paths, to: playlistId)
+    }
 }
 
 #Preview {
-    TracksTableView(viewModel: LibraryViewModel(), searchText: "")
+    TracksTableView(viewModel: LibraryViewModel(), ipodVM: IPodViewModel(), searchText: "")
 }

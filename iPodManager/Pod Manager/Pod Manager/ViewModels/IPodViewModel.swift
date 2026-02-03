@@ -98,4 +98,38 @@ class IPodViewModel: ObservableObject {
         // Reload tracks
         tracks = db.tracks
     }
+
+    /// Get tracks for a specific playlist
+    func getPlaylistTracks(playlistId: Int) -> [Track] {
+        // For the master playlist, return all tracks
+        if let playlist = playlists.first(where: { $0.id == playlistId }), playlist.isMaster {
+            return tracks
+        }
+
+        // TODO: When libgpod is fully integrated, get actual playlist tracks
+        // For now, return all tracks as a placeholder
+        return tracks
+    }
+
+    /// Get the currently selected playlist
+    var selectedPlaylist: Playlist? {
+        guard let id = selectedPlaylistId else { return nil }
+        return playlists.first { $0.id == id }
+    }
+
+    /// Rename a playlist
+    func renamePlaylist(id: Int, newName: String) async throws {
+        // TODO: When libgpod is linked, call the actual rename method
+        if let index = playlists.firstIndex(where: { $0.id == id }) {
+            let old = playlists[index]
+            playlists[index] = Playlist(
+                id: old.id,
+                name: newName,
+                isSmart: old.isSmart,
+                isMaster: old.isMaster,
+                isPodcast: old.isPodcast,
+                trackCount: old.trackCount
+            )
+        }
+    }
 }

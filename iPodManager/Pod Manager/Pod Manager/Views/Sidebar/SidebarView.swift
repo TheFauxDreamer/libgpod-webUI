@@ -4,6 +4,7 @@ struct SidebarView: View {
     @ObservedObject var ipodVM: IPodViewModel
     @Binding var showSettings: Bool
     @State private var showNewPlaylist = false
+    @State private var showM3UImport = false
 
     var body: some View {
         List {
@@ -64,12 +65,22 @@ struct SidebarView: View {
                         Label("New Playlist", systemImage: "plus")
                     }
                     .buttonStyle(.plain)
+
+                    Button {
+                        showM3UImport = true
+                    } label: {
+                        Label("Import M3U", systemImage: "doc.badge.plus")
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
         .listStyle(.sidebar)
         .sheet(isPresented: $showNewPlaylist) {
             NewPlaylistSheet(ipodVM: ipodVM)
+        }
+        .sheet(isPresented: $showM3UImport) {
+            M3UImportSheet(ipodVM: ipodVM)
         }
     }
 }
