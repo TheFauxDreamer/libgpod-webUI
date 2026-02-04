@@ -239,6 +239,70 @@ def library_import_m3u():
     })
 
 
+# ─── Search API ───────────────────────────────────────────────────
+
+@app.route('/api/search', methods=['GET'])
+def search():
+    """Unified search across albums, tracks, and podcasts."""
+    query = request.args.get('q', '').strip()
+    formats = request.args.getlist('formats')
+    show_all = request.args.get('show_all', 'false') == 'true'
+
+    if not query:
+        return jsonify({
+            'albums': [], 'albums_total': 0,
+            'tracks': [], 'tracks_total': 0,
+            'podcasts': [], 'podcasts_total': 0
+        })
+
+    # Use unlimited limits if show_all is true
+    if show_all:
+        limit_albums = None
+        limit_tracks = None
+        limit_podcasts = None
+    else:
+        limit_albums = 20
+        limit_tracks = 40
+        limit_podcasts = 20
+
+    results = models.search_all(
+        query,
+        formats=formats if formats else None,
+        limit_albums=limit_albums,
+        limit_tracks=limit_tracks,
+        limit_podcasts=limit_podcasts
+    )
+
+    return jsonify(results)
+
+
+@app.route('/api/library/all-track-ids', methods=['GET'])
+def library_all_track_ids():
+    """Get all track IDs with optional filtering."""
+    track_type = request.args.get('type', 'all')  # 'music', 'podcast', 'all'
+    formats_param = request.args.get('formats', '')
+
+    # Determine is_podcast filter
+    if track_type == 'music':
+        is_podcast = False
+    elif track_type == 'podcast':
+        is_podcast = True
+    else:
+        is_podcast = None
+
+    # Parse formats
+    formats = None
+    if formats_param and formats_param != 'all':
+        formats = [f.strip().lower() for f in formats_param.split(',') if f.strip()]
+
+    track_ids = models.get_all_track_ids(is_podcast=is_podcast, formats=formats)
+
+    return jsonify({
+        'track_ids': track_ids,
+        'count': len(track_ids)
+    })
+
+
 @app.route('/api/artwork/<artwork_hash>')
 def serve_artwork(artwork_hash):
     path = get_artwork_path(artwork_hash)

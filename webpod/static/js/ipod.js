@@ -478,6 +478,150 @@ var IPod = {
     },
 
     /**
+     * Initialize Add All Content modal
+     */
+    initAddAllContent: function() {
+        var dialog = document.getElementById('add-all-dialog');
+        var openBtn = document.getElementById('add-all-content-btn');
+        var cancelBtn = document.getElementById('add-all-cancel');
+        var syncBtn = document.getElementById('add-all-sync');
+        var musicCheckbox = document.getElementById('add-all-music');
+        var podcastCheckbox = document.getElementById('add-all-podcasts');
+        var formatSelect = document.getElementById('add-all-format');
+        var musicOptions = document.getElementById('music-options');
+        var summary = document.getElementById('add-all-summary');
+
+        // Track IDs to sync
+        var pendingTrackIds = [];
+
+        // Open dialog
+        openBtn.addEventListener('click', function() {
+            if (!IPod.connected) {
+                WebPod.toast('Connect an iPod first', 'error');
+                return;
+            }
+            dialog.classList.remove('hidden');
+            updateSummary();
+        });
+
+        // Close dialog
+        cancelBtn.addEventListener('click', function() {
+            dialog.classList.add('hidden');
+        });
+
+        // Toggle music options visibility
+        musicCheckbox.addEventListener('change', function() {
+            musicOptions.classList.toggle('hidden', !this.checked);
+            updateSummary();
+        });
+
+        // Update on podcast checkbox change
+        podcastCheckbox.addEventListener('change', updateSummary);
+
+        // Update on format change
+        formatSelect.addEventListener('change', updateSummary);
+
+        // Update summary with track counts
+        function updateSummary() {
+            var includeMusic = musicCheckbox.checked;
+            var includePodcasts = podcastCheckbox.checked;
+            var format = formatSelect.value;
+
+            if (!includeMusic && !includePodcasts) {
+                summary.textContent = 'Select content to add';
+                syncBtn.disabled = true;
+                pendingTrackIds = [];
+                return;
+            }
+
+            summary.textContent = 'Calculating...';
+            syncBtn.disabled = true;
+
+            // Build requests
+            var requests = [];
+
+            if (includeMusic) {
+                var musicUrl = '/api/library/all-track-ids?type=music';
+                if (format !== 'all') {
+                    musicUrl += '&formats=' + format;
+                }
+                requests.push(WebPod.api(musicUrl).then(function(data) {
+                    return { type: 'music', ids: data.track_ids, count: data.count };
+                }));
+            }
+
+            if (includePodcasts) {
+                requests.push(WebPod.api('/api/library/all-track-ids?type=podcast').then(function(data) {
+                    return { type: 'podcast', ids: data.track_ids, count: data.count };
+                }));
+            }
+
+            Promise.all(requests).then(function(results) {
+                var musicCount = 0;
+                var podcastCount = 0;
+                pendingTrackIds = [];
+
+                results.forEach(function(result) {
+                    if (result.type === 'music') {
+                        musicCount = result.count;
+                        pendingTrackIds = pendingTrackIds.concat(result.ids);
+                    } else {
+                        podcastCount = result.count;
+                        pendingTrackIds = pendingTrackIds.concat(result.ids);
+                    }
+                });
+
+                var parts = [];
+                if (musicCount > 0) parts.push(musicCount + ' music track' + (musicCount !== 1 ? 's' : ''));
+                if (podcastCount > 0) parts.push(podcastCount + ' podcast episode' + (podcastCount !== 1 ? 's' : ''));
+
+                if (parts.length > 0) {
+                    summary.textContent = 'Will add: ' + parts.join(', ');
+                    syncBtn.disabled = false;
+                } else {
+                    summary.textContent = 'No content found';
+                    syncBtn.disabled = true;
+                }
+            }).catch(function(err) {
+                summary.textContent = 'Error loading content';
+                syncBtn.disabled = true;
+            });
+        }
+
+        // Sync to iPod
+        syncBtn.addEventListener('click', function() {
+            if (pendingTrackIds.length === 0) return;
+
+            syncBtn.disabled = true;
+            syncBtn.textContent = 'Syncing...';
+
+            WebPod.api('/api/ipod/add-tracks', {
+                method: 'POST',
+                body: { track_ids: pendingTrackIds }
+            }).then(function(data) {
+                var added = data.added ? data.added.length : 0;
+                var skipped = data.skipped_duplicates ? data.skipped_duplicates.length : 0;
+                var errors = data.errors ? data.errors.length : 0;
+
+                var msg = 'Added ' + added + ' tracks to iPod';
+                if (skipped > 0) msg += ', ' + skipped + ' duplicates skipped';
+                if (errors > 0) msg += ', ' + errors + ' errors';
+
+                WebPod.toast(msg, errors > 0 ? 'warning' : 'success');
+                dialog.classList.add('hidden');
+                IPod.loadTracks();
+
+                syncBtn.textContent = 'Sync to iPod';
+                syncBtn.disabled = false;
+            }).catch(function(err) {
+                WebPod.toast('Sync failed: ' + (err.message || 'Unknown error'), 'error');
+                syncBtn.textContent = 'Sync to iPod';
+                syncBtn.disabled = false;
+            });
+        });
+    },
+
+    /**
      * Initialize iPod module
      */
     init: function() {
@@ -528,6 +672,9 @@ var IPod = {
                 dropdown.classList.add('hidden');
             });
         }
+
+        // Initialize Add All Content modal
+        IPod.initAddAllContent();
     }
 };
 

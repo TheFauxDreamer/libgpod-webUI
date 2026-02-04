@@ -454,3 +454,186 @@ def get_podcast_episodes(series_name):
             episodes.append(dict(row))
 
     return episodes
+
+
+def search_all(query, formats=None, limit_albums=20, limit_tracks=40, limit_podcasts=20):
+    """
+    Search across albums, tracks, and podcasts.
+    Returns dict with arrays and metadata for each section.
+    Set limit to None for unlimited results.
+    """
+    if not query:
+        return {
+            'albums': [], 'albums_total': 0,
+            'tracks': [], 'tracks_total': 0,
+            'podcasts': [], 'podcasts_total': 0
+        }
+
+    conn = get_db()
+    cursor = conn.cursor()
+    search_pattern = f"%{query}%"
+    results = {}
+
+    # ─── Search Albums ────────────────────────────────────────────────
+    album_query = """
+        SELECT album, artist, album_artist, artwork_hash,
+               COUNT(*) as track_count, MIN(year) as year
+        FROM library_tracks
+        WHERE album IS NOT NULL AND album != '' AND is_podcast = 0
+          AND (album LIKE ? OR COALESCE(album_artist, artist) LIKE ?)
+    """
+    params = [search_pattern, search_pattern]
+
+    # Add format filter if specified
+    if formats and 'all' not in formats:
+        format_conditions = []
+        for fmt in formats:
+            format_conditions.append(f"file_path LIKE '%.{fmt}'")
+        album_query += " AND (" + " OR ".join(format_conditions) + ")"
+
+    album_query += " GROUP BY album, COALESCE(album_artist, artist)"
+
+    # Get total count first
+    count_query = "SELECT COUNT(*) FROM (" + album_query + ")"
+    cursor.execute(count_query, params)
+    results['albums_total'] = cursor.fetchone()[0]
+
+    # Get limited results
+    album_query += " ORDER BY COALESCE(album_artist, artist), album"
+    if limit_albums is not None:
+        album_query += f" LIMIT {limit_albums}"
+
+    cursor.execute(album_query, params)
+    results['albums'] = [dict(row) for row in cursor.fetchall()]
+
+    # ─── Search Tracks ────────────────────────────────────────────────
+    track_query = """
+        SELECT id, title, artist, album, genre, year, duration_ms, file_path, artwork_hash
+        FROM library_tracks
+        WHERE is_podcast = 0
+          AND (title LIKE ? OR artist LIKE ? OR album LIKE ? OR genre LIKE ?)
+    """
+    track_params = [search_pattern, search_pattern, search_pattern, search_pattern]
+
+    # Add format filter
+    if formats and 'all' not in formats:
+        format_conditions = []
+        for fmt in formats:
+            format_conditions.append(f"file_path LIKE '%.{fmt}'")
+        track_query += " AND (" + " OR ".join(format_conditions) + ")"
+
+    # Get total count
+    count_query = "SELECT COUNT(*) FROM (" + track_query + ")"
+    cursor.execute(count_query, track_params)
+    results['tracks_total'] = cursor.fetchone()[0]
+
+    # Get limited results
+    track_query += " ORDER BY artist, album, title"
+    if limit_tracks is not None:
+        track_query += f" LIMIT {limit_tracks}"
+
+    cursor.execute(track_query, track_params)
+    results['tracks'] = [dict(row) for row in cursor.fetchall()]
+
+    # ─── Search Podcasts ──────────────────────────────────────────────
+    # Podcasts: series_name is computed from album/folder, so fetch all and filter in Python
+    import os
+    podcast_query = """
+        SELECT album, file_path, artwork_hash, year, track_nr
+        FROM library_tracks
+        WHERE is_podcast = 1
+    """
+    cursor.execute(podcast_query)
+    podcast_rows = cursor.fetchall()
+    conn.close()
+
+    # Group by series name and filter by search query
+    series_map = {}
+    for row in podcast_rows:
+        album = row['album']
+        file_path = row['file_path']
+
+        # Compute series name (same logic as get_podcast_series_simple)
+        if album and album.strip():
+            series_name = album.strip()
+        else:
+            parent_dir = os.path.dirname(file_path)
+            series_name = os.path.basename(parent_dir) or 'Unknown Podcast'
+
+        # Filter by search query
+        if query.lower() not in series_name.lower():
+            continue
+
+        if series_name not in series_map:
+            series_map[series_name] = {
+                'series_name': series_name,
+                'episode_count': 0,
+                'artwork_hash': None,
+                '_latest_year': 0,
+                '_latest_track_nr': 0
+            }
+
+        series_map[series_name]['episode_count'] += 1
+
+        # Track artwork from most recent episode
+        if row['artwork_hash']:
+            year = row['year'] or 0
+            track_nr = row['track_nr'] or 0
+            current = series_map[series_name]
+            if (year > current['_latest_year']) or \
+               (year == current['_latest_year'] and track_nr > current['_latest_track_nr']):
+                current['artwork_hash'] = row['artwork_hash']
+                current['_latest_year'] = year
+                current['_latest_track_nr'] = track_nr
+
+    # Clean up internal tracking fields and sort
+    podcast_list = []
+    for series in series_map.values():
+        del series['_latest_year']
+        del series['_latest_track_nr']
+        podcast_list.append(series)
+
+    podcast_list.sort(key=lambda x: x['series_name'])
+
+    # Apply limit
+    results['podcasts_total'] = len(podcast_list)
+    if limit_podcasts is not None:
+        results['podcasts'] = podcast_list[:limit_podcasts]
+    else:
+        results['podcasts'] = podcast_list
+
+    return results
+
+
+def get_all_track_ids(is_podcast=None, formats=None):
+    """Get all track IDs, optionally filtered by type and format.
+
+    Args:
+        is_podcast: True for podcasts, False for music, None for both
+        formats: List of format extensions (e.g., ['mp3', 'flac']) or None for all
+
+    Returns:
+        List of track IDs
+    """
+    conn = get_db()
+
+    conditions = []
+    params = []
+
+    if is_podcast is not None:
+        conditions.append("is_podcast = ?")
+        params.append(1 if is_podcast else 0)
+
+    if formats:
+        format_conditions = []
+        for fmt in formats:
+            format_conditions.append("file_path LIKE ?")
+            params.append(f"%.{fmt}")
+        conditions.append("(" + " OR ".join(format_conditions) + ")")
+
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    rows = conn.execute(f"SELECT id FROM library_tracks {where}", params).fetchall()
+    conn.close()
+
+    return [row['id'] for row in rows]

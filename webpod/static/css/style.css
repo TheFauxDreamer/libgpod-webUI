@@ -28,7 +28,7 @@
     --bg-sidebar: #fafafa;
     --bg-hover: #e8e8e8;
     --bg-selected: #cce4f7;
-    --bg-card: #ffffff;
+    --bg-card: #f8f8f8;
     --text-primary: #333333;
     --text-secondary: #666666;
     --text-bright: #000000;
@@ -1089,5 +1089,203 @@ td > .format-tag {
     background-color: rgba(255, 255, 255, 0.2);
     color: #ffffff;
     border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ─── Search Results View ──────────────────────────── */
+
+#search-view {
+    padding: 24px;
+}
+
+.search-empty {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 300px;
+    color: var(--text-secondary);
+    font-size: 16px;
+}
+
+/* Search Filters Bar */
+.search-filters {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 16px 0;
+    margin-bottom: 24px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Format Filter Dropdown (inside search view) */
+.format-filter-container {
+    position: relative;
+    display: inline-block;
+}
+
+.btn-dropdown {
+    padding: 8px 12px;
+    background-color: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    min-width: 120px;
+}
+
+.btn-dropdown:hover {
+    background-color: var(--hover-bg);
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    opacity: 0.6;
+    margin-left: auto;
+}
+
+#format-filter-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+#format-filter-dropdown.hidden {
+    display: none;
+}
+
+.format-filter-options {
+    padding: 8px 0;
+}
+
+.format-checkbox {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    cursor: pointer;
+    user-select: none;
+}
+
+.format-checkbox:hover {
+    background-color: var(--hover-bg);
+}
+
+.format-checkbox input[type="checkbox"] {
+    margin-right: 10px;
+    cursor: pointer;
+}
+
+.format-checkbox span {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+/* Search Result Sections */
+.search-section {
+    margin-bottom: 40px;
+}
+
+.search-section h3 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: var(--text-primary);
+}
+
+.search-section:empty,
+.search-section[data-count="0"] {
+    display: none;
+}
+
+/* Show More Buttons */
+.show-more-btn {
+    display: block;
+    margin: 16px auto 0;
+    padding: 10px 20px;
+    background-color: var(--button-bg);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.show-more-btn:hover {
+    background-color: var(--hover-bg);
+}
+
+.show-more-btn.hidden {
+    display: none;
+}
+
+/* ─── Add All Content Modal ─────────────────────────── */
+
+.add-all-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 16px 0;
+}
+
+.add-all-option {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.add-all-option > .checkbox-group {
+    font-weight: 600;
+}
+
+.sub-options {
+    margin-left: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sub-options.hidden {
+    display: none;
+}
+
+.option-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.option-row label {
+    min-width: 60px;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
+.option-row select {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.add-all-summary {
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 16px;
 }
 

@@ -9,6 +9,8 @@ var WebPod = {
     searchTimeout: null,
     skipSearchHandler: false,  // Flag to skip search when setting input programmatically
     theme: 'dark',
+    selectedFormats: ['all'],  // Default to all formats
+    lastSearchQuery: '',  // Track last search to avoid duplicate calls
 
     /**
      * Show a toast notification
@@ -127,11 +129,12 @@ var WebPod = {
      */
     switchView: function(view, skipLoad) {
         WebPod.currentView = view;
-        var views = ['albums', 'tracks', 'podcasts', 'ipod-tracks'];
+        var views = ['albums', 'tracks', 'podcasts', 'search', 'ipod-tracks'];
         var buttons = {
             'albums': document.getElementById('view-albums'),
             'tracks': document.getElementById('view-tracks'),
             'podcasts': document.getElementById('view-podcasts'),
+            'search': document.getElementById('view-search'),
             'ipod-tracks': document.getElementById('view-ipod-tracks')
         };
 
@@ -165,6 +168,14 @@ var WebPod = {
                 Library.loadTracks();
             } else if (view === 'podcasts') {
                 Podcasts.loadSeries();
+            } else if (view === 'search') {
+                // If there's a current search query, perform search
+                var query = document.getElementById('search-input').value.trim();
+                if (query) {
+                    WebPod.performSearch(query);
+                } else {
+                    WebPod.showSearchEmptyState();
+                }
             } else if (view === 'ipod-tracks') {
                 IPod.loadTracks();
             }
@@ -185,10 +196,18 @@ var WebPod = {
             clearTimeout(WebPod.searchTimeout);
             WebPod.searchTimeout = setTimeout(function() {
                 var query = searchInput.value.trim();
-                if (WebPod.currentView === 'albums') {
-                    Library.loadAlbums(query);
-                } else if (WebPod.currentView === 'tracks') {
-                    Library.loadTracks(query);
+
+                // If user types anything, switch to search view and search
+                if (query) {
+                    WebPod.switchView('search');
+                    // Reset format filter to "all" for new search
+                    WebPod.resetFormatFilter();
+                    WebPod.performSearch(query);
+                } else {
+                    // Empty search - show empty state in search view
+                    if (WebPod.currentView === 'search') {
+                        WebPod.showSearchEmptyState();
+                    }
                 }
             }, 300);
         });
@@ -209,6 +228,229 @@ var WebPod = {
                 Library.loadAlbums(document.getElementById('search-input').value.trim());
             }
         });
+    },
+
+    /**
+     * Initialize format filter dropdown (inside search view)
+     */
+    initFormatFilter: function() {
+        var filterBtn = document.getElementById('format-filter-btn');
+        var dropdown = document.getElementById('format-filter-dropdown');
+        var label = document.getElementById('format-filter-label');
+        var checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
+        var allCheckbox = dropdown.querySelector('[data-format-all]');
+
+        // Toggle dropdown
+        filterBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+
+        // Close on outside click
+        document.addEventListener('click', function() {
+            dropdown.classList.add('hidden');
+        });
+
+        dropdown.addEventListener('click', function(e) {
+            e.stopPropagation();
+        });
+
+        // Handle checkbox changes
+        checkboxes.forEach(function(checkbox) {
+            checkbox.addEventListener('change', function() {
+                if (checkbox === allCheckbox) {
+                    if (checkbox.checked) {
+                        checkboxes.forEach(function(cb) { cb.checked = true; });
+                        WebPod.selectedFormats = ['all'];
+                    }
+                } else {
+                    if (!checkbox.checked) {
+                        allCheckbox.checked = false;
+                    }
+                    var allIndividualsChecked = Array.from(checkboxes).every(function(cb) {
+                        return cb === allCheckbox || cb.checked;
+                    });
+                    if (allIndividualsChecked) {
+                        allCheckbox.checked = true;
+                    }
+                }
+
+                // Update selected formats
+                if (allCheckbox.checked) {
+                    WebPod.selectedFormats = ['all'];
+                    label.textContent = 'All Formats';
+                } else {
+                    WebPod.selectedFormats = [];
+                    checkboxes.forEach(function(cb) {
+                        if (cb !== allCheckbox && cb.checked) {
+                            WebPod.selectedFormats.push(cb.value);
+                        }
+                    });
+
+                    if (WebPod.selectedFormats.length === 0) {
+                        label.textContent = 'No formats';
+                    } else if (WebPod.selectedFormats.length === 1) {
+                        label.textContent = WebPod.selectedFormats[0].toUpperCase();
+                    } else {
+                        label.textContent = WebPod.selectedFormats.length + ' formats';
+                    }
+                }
+
+                // Trigger search refresh with new filters
+                if (WebPod.lastSearchQuery) {
+                    WebPod.performSearch(WebPod.lastSearchQuery);
+                }
+            });
+        });
+    },
+
+    /**
+     * Reset format filter to "All Formats" for new searches
+     */
+    resetFormatFilter: function() {
+        var allCheckbox = document.querySelector('[data-format-all]');
+        var checkboxes = document.querySelectorAll('#format-filter-dropdown input[type="checkbox"]');
+        if (allCheckbox) {
+            checkboxes.forEach(function(cb) { cb.checked = true; });
+            allCheckbox.checked = true;
+            WebPod.selectedFormats = ['all'];
+            document.getElementById('format-filter-label').textContent = 'All Formats';
+        }
+    },
+
+    /**
+     * Perform unified search across albums, tracks, and podcasts
+     */
+    performSearch: function(query, showAll) {
+        WebPod.lastSearchQuery = query;
+
+        var url = '/api/search?q=' + encodeURIComponent(query);
+
+        // Add format filters ONLY if not "all" (default shows everything)
+        if (WebPod.selectedFormats[0] !== 'all') {
+            WebPod.selectedFormats.forEach(function(fmt) {
+                url += '&formats=' + encodeURIComponent(fmt);
+            });
+        }
+
+        // Add show_all parameter if requested
+        if (showAll) {
+            url += '&show_all=true';
+        }
+
+        WebPod.api(url).then(function(data) {
+            WebPod.renderSearchResults(data);
+        }).catch(function(err) {
+            console.error('Search error:', err);
+        });
+    },
+
+    /**
+     * Render search results in the search view
+     */
+    renderSearchResults: function(data) {
+        var emptyState = document.getElementById('search-empty-state');
+        var results = document.getElementById('search-results');
+
+        emptyState.classList.add('hidden');
+        results.classList.remove('hidden');
+
+        // Render Albums
+        var albumsSection = document.getElementById('search-albums-section');
+        var albumsCount = document.getElementById('search-albums-count');
+        var albumsGrid = document.getElementById('search-albums-grid');
+        var showMoreAlbums = document.getElementById('show-more-albums');
+        var albumsRemaining = document.getElementById('albums-remaining');
+
+        albumsCount.textContent = data.albums_total || data.albums.length;
+        if (data.albums.length > 0) {
+            albumsSection.style.display = 'block';
+            albumsGrid.innerHTML = '';
+            data.albums.forEach(function(album) {
+                var card = Library.createAlbumCard(album);
+                albumsGrid.appendChild(card);
+            });
+
+            // Show "Show more" button if there are more results
+            if (data.albums_total && data.albums.length < data.albums_total) {
+                showMoreAlbums.classList.remove('hidden');
+                albumsRemaining.textContent = data.albums_total;
+            } else {
+                showMoreAlbums.classList.add('hidden');
+            }
+        } else {
+            albumsSection.style.display = 'none';
+        }
+
+        // Render Tracks
+        var tracksSection = document.getElementById('search-tracks-section');
+        var tracksCount = document.getElementById('search-tracks-count');
+        var tracksTbody = document.getElementById('search-tracks-tbody');
+        var showMoreTracks = document.getElementById('show-more-tracks');
+        var tracksRemaining = document.getElementById('tracks-remaining');
+
+        tracksCount.textContent = data.tracks_total || data.tracks.length;
+        if (data.tracks.length > 0) {
+            tracksSection.style.display = 'block';
+            tracksTbody.innerHTML = '';
+            data.tracks.forEach(function(track) {
+                var row = Library.createTrackRow(track);
+                tracksTbody.appendChild(row);
+            });
+
+            // Show "Show more" button if there are more results
+            if (data.tracks_total && data.tracks.length < data.tracks_total) {
+                showMoreTracks.classList.remove('hidden');
+                tracksRemaining.textContent = data.tracks_total;
+            } else {
+                showMoreTracks.classList.add('hidden');
+            }
+        } else {
+            tracksSection.style.display = 'none';
+        }
+
+        // Render Podcasts
+        var podcastsSection = document.getElementById('search-podcasts-section');
+        var podcastsCount = document.getElementById('search-podcasts-count');
+        var podcastsGrid = document.getElementById('search-podcasts-grid');
+        var showMorePodcasts = document.getElementById('show-more-podcasts');
+        var podcastsRemaining = document.getElementById('podcasts-remaining');
+
+        podcastsCount.textContent = data.podcasts_total || data.podcasts.length;
+        if (data.podcasts.length > 0) {
+            podcastsSection.style.display = 'block';
+            podcastsGrid.innerHTML = '';
+            data.podcasts.forEach(function(series) {
+                var card = Podcasts.createSeriesCard(series);
+                podcastsGrid.appendChild(card);
+            });
+
+            // Show "Show more" button if there are more results
+            if (data.podcasts_total && data.podcasts.length < data.podcasts_total) {
+                showMorePodcasts.classList.remove('hidden');
+                podcastsRemaining.textContent = data.podcasts_total;
+            } else {
+                showMorePodcasts.classList.add('hidden');
+            }
+        } else {
+            podcastsSection.style.display = 'none';
+        }
+
+        // If no results at all, show message
+        if (data.albums.length === 0 && data.tracks.length === 0 && data.podcasts.length === 0) {
+            results.innerHTML = '<div class="search-empty"><p>No results found for "' +
+                WebPod.lastSearchQuery + '"</p></div>';
+        }
+    },
+
+    /**
+     * Show empty state in search view
+     */
+    showSearchEmptyState: function() {
+        var emptyState = document.getElementById('search-empty-state');
+        var results = document.getElementById('search-results');
+        emptyState.classList.remove('hidden');
+        results.classList.add('hidden');
     },
 
     /**
@@ -575,7 +817,32 @@ var WebPod = {
         WebPod.initSettingsModal();
         WebPod.initSearch();
         WebPod.initSort();
+        WebPod.initFormatFilter();
         WebPod.initThemeListener();
+
+        // Add search tab click handler
+        document.getElementById('view-search').addEventListener('click', function() {
+            WebPod.switchView('search');
+        });
+
+        // Add "Show more" button handlers
+        document.getElementById('show-more-albums').addEventListener('click', function() {
+            if (WebPod.lastSearchQuery) {
+                WebPod.performSearch(WebPod.lastSearchQuery, true);
+            }
+        });
+
+        document.getElementById('show-more-tracks').addEventListener('click', function() {
+            if (WebPod.lastSearchQuery) {
+                WebPod.performSearch(WebPod.lastSearchQuery, true);
+            }
+        });
+
+        document.getElementById('show-more-podcasts').addEventListener('click', function() {
+            if (WebPod.lastSearchQuery) {
+                WebPod.performSearch(WebPod.lastSearchQuery, true);
+            }
+        });
 
         // Default view
         WebPod.switchView('albums');

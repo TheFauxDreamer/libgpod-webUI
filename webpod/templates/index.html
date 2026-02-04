@@ -59,6 +59,7 @@
                     <div class="sidebar-actions">
                         <button id="new-playlist-btn" class="btn btn-small">+ New Playlist</button>
                         <button id="import-m3u-btn" class="btn btn-small">Import M3U</button>
+                        <button id="add-all-content-btn" class="btn btn-small btn-primary">Add All Content</button>
                     </div>
                 </div>
             </div>
@@ -72,6 +73,7 @@
                     <button id="view-albums" class="btn btn-tab active">Albums</button>
                     <button id="view-tracks" class="btn btn-tab">Tracks</button>
                     <button id="view-podcasts" class="btn btn-tab">Podcasts</button>
+                    <button id="view-search" class="btn btn-tab">Search</button>
                     <button id="view-ipod-tracks" class="btn btn-tab">iPod Tracks</button>
                 </div>
                 <div class="toolbar-center">
@@ -159,6 +161,95 @@
                     </thead>
                     <tbody id="ipod-tracks-tbody"></tbody>
                 </table>
+            </div>
+
+            <!-- Search Results View -->
+            <div id="search-view" class="content-view hidden">
+                <div id="search-empty-state" class="search-empty">
+                    <p>Type in the search box to find music and podcasts</p>
+                </div>
+                <div id="search-results" class="hidden">
+                    <!-- Filter Bar -->
+                    <div class="search-filters">
+                        <div class="format-filter-container">
+                            <button id="format-filter-btn" class="btn btn-dropdown">
+                                <span id="format-filter-label">All Formats</span>
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div id="format-filter-dropdown" class="dropdown-menu hidden">
+                                <div class="format-filter-options">
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="all" checked data-format-all>
+                                        <span>All Formats</span>
+                                    </label>
+                                    <div class="dropdown-divider"></div>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="mp3" checked>
+                                        <span>MP3</span>
+                                    </label>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="flac" checked>
+                                        <span>FLAC</span>
+                                    </label>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="m4a" checked>
+                                        <span>M4A</span>
+                                    </label>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="aac" checked>
+                                        <span>AAC</span>
+                                    </label>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="ogg" checked>
+                                        <span>OGG</span>
+                                    </label>
+                                    <label class="format-checkbox">
+                                        <input type="checkbox" value="wav" checked>
+                                        <span>WAV</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Albums Section -->
+                    <div id="search-albums-section" class="search-section">
+                        <h3>Albums (<span id="search-albums-count">0</span>)</h3>
+                        <div id="search-albums-grid" class="albums-grid"></div>
+                        <button id="show-more-albums" class="btn btn-small show-more-btn hidden">
+                            Show all <span id="albums-remaining">0</span> albums
+                        </button>
+                    </div>
+
+                    <!-- Tracks Section -->
+                    <div id="search-tracks-section" class="search-section">
+                        <h3>Tracks (<span id="search-tracks-count">0</span>)</h3>
+                        <table class="tracks-table">
+                            <thead>
+                                <tr>
+                                    <th class="col-title">Title</th>
+                                    <th class="col-artist">Artist</th>
+                                    <th class="col-album">Album</th>
+                                    <th class="col-genre">Genre</th>
+                                    <th class="col-duration">Duration</th>
+                                </tr>
+                            </thead>
+                            <tbody id="search-tracks-tbody"></tbody>
+                        </table>
+                        <button id="show-more-tracks" class="btn btn-small show-more-btn hidden">
+                            Show all <span id="tracks-remaining">0</span> tracks
+                        </button>
+                    </div>
+
+                    <!-- Podcasts Section -->
+                    <div id="search-podcasts-section" class="search-section">
+                        <h3>Podcasts (<span id="search-podcasts-count">0</span>)</h3>
+                        <div id="search-podcasts-grid" class="podcasts-grid"></div>
+                        <button id="show-more-podcasts" class="btn btn-small show-more-btn hidden">
+                            Show all <span id="podcasts-remaining">0</span> podcasts
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Empty State -->
@@ -278,6 +369,52 @@
                 <button id="m3u-cancel" class="btn">Cancel</button>
                 <button id="m3u-import" class="btn btn-primary">Load Playlist</button>
                 <button id="m3u-add-to-ipod" class="btn btn-primary hidden">Add to iPod</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add All Content Dialog -->
+    <div id="add-all-dialog" class="dialog-overlay hidden">
+        <div class="dialog">
+            <h3>Add All Content</h3>
+
+            <div class="add-all-options">
+                <div class="add-all-option">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="add-all-music" checked>
+                        <span>Music</span>
+                    </label>
+                    <div id="music-options" class="sub-options">
+                        <div class="option-row">
+                            <label>Format:</label>
+                            <select id="add-all-format">
+                                <option value="all">All Formats</option>
+                                <option value="mp3">MP3</option>
+                                <option value="flac">FLAC</option>
+                                <option value="m4a">M4A</option>
+                                <option value="aac">AAC</option>
+                                <option value="ogg">OGG</option>
+                                <option value="wav">WAV</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="add-all-option">
+                    <label class="checkbox-group">
+                        <input type="checkbox" id="add-all-podcasts" checked>
+                        <span>Podcasts</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="add-all-summary" class="add-all-summary">
+                Calculating...
+            </div>
+
+            <div class="dialog-actions">
+                <button id="add-all-cancel" class="btn">Cancel</button>
+                <button id="add-all-sync" class="btn btn-primary" disabled>Sync to iPod</button>
             </div>
         </div>
     </div>
