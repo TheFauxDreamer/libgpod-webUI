@@ -37,6 +37,65 @@ var Library = {
     expansionLastSelectedIndex: -1,
 
     /**
+     * Create an album card element
+     */
+    createAlbumCard: function(album) {
+        var card = document.createElement('div');
+        card.className = 'album-card';
+        card.draggable = true;
+
+        var img = document.createElement('img');
+        if (album.artwork_hash) {
+            img.src = '/api/artwork/' + album.artwork_hash;
+        } else {
+            img.src = PLACEHOLDER_IMG;
+        }
+        img.alt = album.album || 'Unknown Album';
+        img.onerror = function() {
+            this.src = PLACEHOLDER_IMG;
+        };
+
+        var info = document.createElement('div');
+        info.className = 'album-card-info';
+
+        var title = document.createElement('div');
+        title.className = 'album-card-title';
+        title.textContent = album.album || 'Unknown Album';
+
+        var artist = document.createElement('div');
+        artist.className = 'album-card-artist';
+        artist.textContent = album.artist || 'Unknown Artist';
+
+        var count = document.createElement('div');
+        count.className = 'album-card-count';
+        count.textContent = (album.track_count || 0) + ' tracks';
+
+        info.appendChild(title);
+        info.appendChild(artist);
+        info.appendChild(count);
+        card.appendChild(img);
+        card.appendChild(info);
+
+        // Click to show album tracks inline
+        card.addEventListener('click', function() {
+            Library.loadAlbumTracks(album.album, album, card);
+        });
+
+        // Drag support
+        card.addEventListener('dragstart', function(e) {
+            var dragData = JSON.stringify({
+                type: 'album',
+                album: album.album,
+                artist: album.artist
+            });
+            e.dataTransfer.setData('text/plain', dragData);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+
+        return card;
+    },
+
+    /**
      * Load and render album cards
      */
     loadAlbums: function(search) {
@@ -61,63 +120,98 @@ var Library = {
 
             grid.innerHTML = '';
             albums.forEach(function(album) {
-                var card = document.createElement('div');
-                card.className = 'album-card';
-                card.draggable = true;
-
-                var img = document.createElement('img');
-                if (album.artwork_hash) {
-                    img.src = '/api/artwork/' + album.artwork_hash;
-                } else {
-                    img.src = PLACEHOLDER_IMG;
-                }
-                img.alt = album.album || 'Unknown Album';
-                img.onerror = function() {
-                    this.src = PLACEHOLDER_IMG;
-                };
-
-                var info = document.createElement('div');
-                info.className = 'album-card-info';
-
-                var title = document.createElement('div');
-                title.className = 'album-card-title';
-                title.textContent = album.album || 'Unknown Album';
-
-                var artist = document.createElement('div');
-                artist.className = 'album-card-artist';
-                artist.textContent = album.artist || 'Unknown Artist';
-
-                var count = document.createElement('div');
-                count.className = 'album-card-count';
-                count.textContent = (album.track_count || 0) + ' tracks';
-
-                info.appendChild(title);
-                info.appendChild(artist);
-                info.appendChild(count);
-                card.appendChild(img);
-                card.appendChild(info);
-
-                // Click to show album tracks inline
-                card.addEventListener('click', function() {
-                    Library.loadAlbumTracks(album.album, album, card);
-                });
-
-                // Drag support
-                card.addEventListener('dragstart', function(e) {
-                    var dragData = JSON.stringify({
-                        type: 'album',
-                        album: album.album,
-                        artist: album.artist
-                    });
-                    e.dataTransfer.setData('text/plain', dragData);
-                    e.dataTransfer.effectAllowed = 'copy';
-                });
-
+                var card = Library.createAlbumCard(album);
                 grid.appendChild(card);
             });
 
             Library.updateStats(albums.length + ' albums');
         });
+    },
+
+    /**
+     * Create a track row element
+     * @param {object} track - Track data
+     * @param {boolean} forSearch - If true, create row for search results (no # or Format columns)
+     * @param {number} index - Track index for selection
+     */
+    createTrackRow: function(track, forSearch, index) {
+        var tr = document.createElement('tr');
+        tr.draggable = !forSearch;  // Only draggable in main tracks view
+        tr.dataset.trackId = track.id;
+        if (index !== undefined) {
+            tr.dataset.index = index;
+        }
+
+        // # column (only in main tracks view)
+        if (!forSearch) {
+            var tdNr = document.createElement('td');
+            tdNr.textContent = track.track_nr || '';
+            tr.appendChild(tdNr);
+        }
+
+        // Title
+        var tdTitle = document.createElement('td');
+        tdTitle.textContent = track.title || 'Unknown';
+        tr.appendChild(tdTitle);
+
+        // Artist
+        var tdArtist = document.createElement('td');
+        tdArtist.textContent = track.artist || 'Unknown';
+        tr.appendChild(tdArtist);
+
+        // Album
+        var tdAlbum = document.createElement('td');
+        tdAlbum.textContent = track.album || 'Unknown';
+        tr.appendChild(tdAlbum);
+
+        // Genre
+        var tdGenre = document.createElement('td');
+        tdGenre.textContent = track.genre || '';
+        tr.appendChild(tdGenre);
+
+        // Format (only in main tracks view)
+        if (!forSearch) {
+            var tdFormat = document.createElement('td');
+            if (WebPod.showFormatTags && track.format) {
+                var formatSpan = document.createElement('span');
+                formatSpan.className = 'format-tag';
+                formatSpan.textContent = track.format.toUpperCase();
+                tdFormat.appendChild(formatSpan);
+            }
+            tr.appendChild(tdFormat);
+        }
+
+        // Duration
+        var tdDuration = document.createElement('td');
+        tdDuration.textContent = WebPod.formatDuration(track.duration_ms);
+        tr.appendChild(tdDuration);
+
+        // Click handler (only in main tracks view for selection)
+        if (!forSearch) {
+            tr.addEventListener('click', function(e) {
+                Library.handleTrackClick(e, track.id, index);
+            });
+
+            // Drag support
+            tr.addEventListener('dragstart', function(e) {
+                if (Library.selectedTrackIds.length > 0 && Library.selectedTrackIds.includes(track.id)) {
+                    var dragData = JSON.stringify({
+                        type: 'tracks',
+                        track_ids: Library.selectedTrackIds
+                    });
+                    e.dataTransfer.setData('text/plain', dragData);
+                } else {
+                    var dragData = JSON.stringify({
+                        type: 'tracks',
+                        track_ids: [track.id]
+                    });
+                    e.dataTransfer.setData('text/plain', dragData);
+                }
+                e.dataTransfer.effectAllowed = 'copy';
+            });
+        }
+
+        return tr;
     },
 
     /**
@@ -197,65 +291,7 @@ var Library = {
 
             tracksToRender.forEach(function(track, i) {
                 var index = startIndex + i;
-                var tr = document.createElement('tr');
-                tr.draggable = true;
-                tr.dataset.trackId = track.id;
-                tr.dataset.index = index;
-
-                var tdNr = document.createElement('td');
-                tdNr.textContent = track.track_nr || '';
-
-                var tdTitle = document.createElement('td');
-                tdTitle.textContent = track.title || 'Unknown';
-
-                var tdArtist = document.createElement('td');
-                tdArtist.textContent = track.artist || 'Unknown';
-
-                var tdAlbum = document.createElement('td');
-                tdAlbum.textContent = track.album || 'Unknown';
-
-                var tdGenre = document.createElement('td');
-                tdGenre.textContent = track.genre || '';
-
-                var tdFormat = document.createElement('td');
-                if (WebPod.showFormatTags && track.format) {
-                    var formatSpan = document.createElement('span');
-                    formatSpan.className = 'format-tag';
-                    formatSpan.textContent = track.format.toUpperCase();
-                    tdFormat.appendChild(formatSpan);
-                }
-
-                var tdDuration = document.createElement('td');
-                tdDuration.textContent = WebPod.formatDuration(track.duration_ms);
-
-                tr.appendChild(tdNr);
-                tr.appendChild(tdTitle);
-                tr.appendChild(tdArtist);
-                tr.appendChild(tdAlbum);
-                tr.appendChild(tdGenre);
-                tr.appendChild(tdFormat);
-                tr.appendChild(tdDuration);
-
-                // Click to select with shift/ctrl support
-                tr.addEventListener('click', function(e) {
-                    Library.handleTrackClick(e, track.id, index);
-                });
-
-                // Drag support
-                tr.addEventListener('dragstart', function(e) {
-                    // If dragging a non-selected row, select it alone
-                    if (Library.selectedTrackIds.indexOf(track.id) === -1) {
-                        Library.selectedTrackIds = [track.id];
-                        Library.updateTrackSelection();
-                    }
-                    var dragData = JSON.stringify({
-                        type: 'tracks',
-                        track_ids: Library.selectedTrackIds.slice()
-                    });
-                    e.dataTransfer.setData('text/plain', dragData);
-                    e.dataTransfer.effectAllowed = 'copy';
-                });
-
+                var tr = Library.createTrackRow(track, false, index);
                 tbody.appendChild(tr);
             });
 

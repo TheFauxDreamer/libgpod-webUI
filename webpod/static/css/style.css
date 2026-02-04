@@ -19,6 +19,12 @@
     --warning: #ff9800;
     --radius: 6px;
     --sidebar-width: 260px;
+
+    /* Input and dropdown backgrounds */
+    --input-bg: #2a2a2a;
+    --panel-bg: #1e1e1e;
+    --hover-bg: #3a3a3a;
+    --button-bg: #2a2a2a;
 }
 
 /* Light theme */
@@ -33,6 +39,12 @@
     --text-secondary: #666666;
     --text-bright: #000000;
     --border-color: #e0e0e0;
+
+    /* Input and dropdown backgrounds */
+    --input-bg: #f0f0f0;
+    --panel-bg: #ffffff;
+    --hover-bg: #e8e8e8;
+    --button-bg: #f0f0f0;
 }
 
 /* Light theme adjustments for format tags */
@@ -354,7 +366,8 @@ body {
 
 /* ─── Album Grid ─────────────────────────────────── */
 
-#albums-grid {
+#albums-grid,
+.albums-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 20px;
@@ -452,12 +465,16 @@ td > .format-tag {
 
 /* ─── Track Table ────────────────────────────────── */
 
-#tracks-table, #ipod-tracks-table {
+#tracks-table,
+#ipod-tracks-table,
+.tracks-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-#tracks-table th, #ipod-tracks-table th {
+#tracks-table th,
+#ipod-tracks-table th,
+.tracks-table th {
     text-align: left;
     padding: 8px 12px;
     font-size: 11px;
@@ -471,7 +488,9 @@ td > .format-tag {
     cursor: pointer;
 }
 
-#tracks-table td, #ipod-tracks-table td {
+#tracks-table td,
+#ipod-tracks-table td,
+.tracks-table td {
     padding: 8px 12px;
     font-size: 13px;
     border-bottom: 1px solid var(--border-color);
@@ -481,20 +500,27 @@ td > .format-tag {
     max-width: 250px;
 }
 
-#tracks-table tr, #ipod-tracks-table tr {
+#tracks-table tr,
+#ipod-tracks-table tr,
+.tracks-table tr {
     cursor: pointer;
 }
 
-#tracks-table tbody tr:hover, #ipod-tracks-table tbody tr:hover {
+#tracks-table tbody tr:hover,
+#ipod-tracks-table tbody tr:hover,
+.tracks-table tbody tr:hover {
     background: var(--bg-hover);
 }
 
-#tracks-table tbody tr.selected, #ipod-tracks-table tbody tr.selected {
+#tracks-table tbody tr.selected,
+#ipod-tracks-table tbody tr.selected,
+.tracks-table tbody tr.selected {
     background: var(--bg-selected);
     color: var(--text-bright);
 }
 
-#tracks-table tbody tr[draggable="true"] {
+#tracks-table tbody tr[draggable="true"],
+.tracks-table tbody tr[draggable="true"] {
     cursor: grab;
 }
 
@@ -813,7 +839,8 @@ td > .format-tag {
 
 /* ─── Podcast Series Grid ────────────────────────── */
 
-#podcast-series-grid {
+#podcast-series-grid,
+.podcasts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
     gap: 20px;
@@ -1202,7 +1229,6 @@ td > .format-tag {
     color: var(--text-primary);
 }
 
-.search-section:empty,
 .search-section[data-count="0"] {
     display: none;
 }

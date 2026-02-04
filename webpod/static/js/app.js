@@ -11,6 +11,7 @@ var WebPod = {
     theme: 'dark',
     selectedFormats: ['all'],  // Default to all formats
     lastSearchQuery: '',  // Track last search to avoid duplicate calls
+    currentSearchQuery: null,  // Track current in-flight search query to avoid race conditions
 
     /**
      * Show a toast notification
@@ -324,6 +325,10 @@ var WebPod = {
     performSearch: function(query, showAll) {
         WebPod.lastSearchQuery = query;
 
+        // Create unique query identifier to handle race conditions
+        var queryId = query + '|' + WebPod.selectedFormats.join(',') + '|' + (showAll ? 'all' : 'limited');
+        WebPod.currentSearchQuery = queryId;
+
         var url = '/api/search?q=' + encodeURIComponent(query);
 
         // Add format filters ONLY if not "all" (default shows everything)
@@ -339,9 +344,16 @@ var WebPod = {
         }
 
         WebPod.api(url).then(function(data) {
-            WebPod.renderSearchResults(data);
+            // Only render if this is still the current query (avoid race conditions)
+            if (WebPod.currentSearchQuery === queryId) {
+                WebPod.renderSearchResults(data);
+            }
         }).catch(function(err) {
             console.error('Search error:', err);
+            // Only show error toast if this is still the current query
+            if (WebPod.currentSearchQuery === queryId) {
+                WebPod.toast('Search failed', 'error');
+            }
         });
     },
 
@@ -394,7 +406,7 @@ var WebPod = {
             tracksSection.style.display = 'block';
             tracksTbody.innerHTML = '';
             data.tracks.forEach(function(track) {
-                var row = Library.createTrackRow(track);
+                var row = Library.createTrackRow(track, true);  // forSearch = true
                 tracksTbody.appendChild(row);
             });
 

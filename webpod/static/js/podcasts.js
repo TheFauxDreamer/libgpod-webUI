@@ -10,6 +10,59 @@ var Podcasts = {
     currentSeries: null,
 
     /**
+     * Create a podcast series card element
+     */
+    createSeriesCard: function(series) {
+        var card = document.createElement('div');
+        card.className = 'album-card podcast-card';
+        card.draggable = true;
+
+        var img = document.createElement('img');
+        if (series.artwork_hash) {
+            img.src = '/api/artwork/' + series.artwork_hash;
+        } else {
+            img.src = PLACEHOLDER_IMG;
+        }
+        img.alt = series.series_name || 'Unknown Podcast';
+        img.onerror = function() {
+            this.src = PLACEHOLDER_IMG;
+        };
+
+        var info = document.createElement('div');
+        info.className = 'album-card-info';
+
+        var title = document.createElement('div');
+        title.className = 'album-card-title';
+        title.textContent = series.series_name || 'Unknown Podcast';
+
+        var count = document.createElement('div');
+        count.className = 'album-card-count';
+        count.textContent = (series.episode_count || 0) + ' episodes';
+
+        info.appendChild(title);
+        info.appendChild(count);
+        card.appendChild(img);
+        card.appendChild(info);
+
+        // Click to show episodes
+        card.addEventListener('click', function() {
+            Podcasts.loadEpisodes(series.series_name);
+        });
+
+        // Drag support - drag entire series
+        card.addEventListener('dragstart', function(e) {
+            var dragData = JSON.stringify({
+                type: 'podcast_series',
+                series_name: series.series_name
+            });
+            e.dataTransfer.setData('text/plain', dragData);
+            e.dataTransfer.effectAllowed = 'copy';
+        });
+
+        return card;
+    },
+
+    /**
      * Load and render podcast series cards
      */
     loadSeries: function() {
@@ -32,52 +85,7 @@ var Podcasts = {
 
             grid.innerHTML = '';
             series.forEach(function(s) {
-                var card = document.createElement('div');
-                card.className = 'album-card podcast-card';
-                card.draggable = true;
-
-                var img = document.createElement('img');
-                if (s.artwork_hash) {
-                    img.src = '/api/artwork/' + s.artwork_hash;
-                } else {
-                    img.src = PLACEHOLDER_IMG;
-                }
-                img.alt = s.series_name || 'Unknown Podcast';
-                img.onerror = function() {
-                    this.src = PLACEHOLDER_IMG;
-                };
-
-                var info = document.createElement('div');
-                info.className = 'album-card-info';
-
-                var title = document.createElement('div');
-                title.className = 'album-card-title';
-                title.textContent = s.series_name || 'Unknown Podcast';
-
-                var count = document.createElement('div');
-                count.className = 'album-card-count';
-                count.textContent = (s.episode_count || 0) + ' episodes';
-
-                info.appendChild(title);
-                info.appendChild(count);
-                card.appendChild(img);
-                card.appendChild(info);
-
-                // Click to show episodes
-                card.addEventListener('click', function() {
-                    Podcasts.loadEpisodes(s.series_name);
-                });
-
-                // Drag support - drag entire series
-                card.addEventListener('dragstart', function(e) {
-                    var dragData = JSON.stringify({
-                        type: 'podcast_series',
-                        series_name: s.series_name
-                    });
-                    e.dataTransfer.setData('text/plain', dragData);
-                    e.dataTransfer.effectAllowed = 'copy';
-                });
-
+                var card = Podcasts.createSeriesCard(s);
                 grid.appendChild(card);
             });
         });
