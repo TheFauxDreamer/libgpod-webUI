@@ -6,12 +6,13 @@ from pathlib import Path
 from mutagen import File as MutagenFile
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
+from mutagen.flac import FLAC
 
 from . import models
 from . import artwork as artwork_module
 from .duplicate_detector import sha1_hash
 
-SUPPORTED_EXTENSIONS = {'.mp3', '.m4a', '.aac', '.mp4'}
+SUPPORTED_EXTENSIONS = {'.mp3', '.m4a', '.aac', '.mp4', '.flac'}
 
 
 def _extract_metadata(file_path):
@@ -116,6 +117,46 @@ def _extract_metadata(file_path):
         if day:
             try:
                 meta['year'] = int(str(day[0])[:4])
+            except (ValueError, IndexError):
+                pass
+
+    elif isinstance(audio, FLAC) and audio.tags:
+        # Vorbis comments
+        tag_map = {
+            'artist': 'artist',
+            'title': 'title',
+            'album': 'album',
+            'albumartist': 'album_artist',
+            'genre': 'genre',
+        }
+        for tag, field in tag_map.items():
+            val = audio.tags.get(tag)
+            if val:
+                meta[field] = str(val[0])
+
+        # Track number
+        tracknumber = audio.tags.get('tracknumber')
+        if tracknumber:
+            parts = str(tracknumber[0]).split('/')
+            try:
+                meta['track_nr'] = int(parts[0])
+            except ValueError:
+                pass
+
+        # Disc number
+        discnumber = audio.tags.get('discnumber')
+        if discnumber:
+            parts = str(discnumber[0]).split('/')
+            try:
+                meta['cd_nr'] = int(parts[0])
+            except ValueError:
+                pass
+
+        # Year
+        date = audio.tags.get('date')
+        if date:
+            try:
+                meta['year'] = int(str(date[0])[:4])
             except (ValueError, IndexError):
                 pass
 

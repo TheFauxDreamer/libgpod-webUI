@@ -60,6 +60,7 @@ def get_settings():
     music_path = models.get_setting('music_library_path')
     podcast_path = models.get_setting('podcast_library_path')
     export_path = models.get_setting('export_path') or models.DEFAULT_EXPORT_PATH
+    show_format_tags = models.get_setting('show_format_tags') == '1'
     return jsonify({
         'music_path': music_path,
         'podcast_path': podcast_path,
@@ -67,7 +68,8 @@ def get_settings():
         'music_set': bool(music_path),
         'podcast_set': bool(podcast_path),
         'music_count': models.get_track_count(is_podcast=False),
-        'podcast_count': models.get_track_count(is_podcast=True)
+        'podcast_count': models.get_track_count(is_podcast=True),
+        'show_format_tags': show_format_tags
     })
 
 
@@ -92,6 +94,9 @@ def save_settings():
         path = data['export_path'].strip() if data['export_path'] else ''
         # Export path doesn't need to exist yet - it will be created on export
         models.set_setting('export_path', path if path else None)
+
+    if 'show_format_tags' in data:
+        models.set_setting('show_format_tags', '1' if data['show_format_tags'] else '0')
 
     return jsonify({"success": True})
 

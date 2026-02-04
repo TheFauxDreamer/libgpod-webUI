@@ -163,6 +163,13 @@ def get_cached_mtime(file_path):
     return None
 
 
+def _get_format(file_path):
+    """Extract format from file path (e.g., 'mp3', 'flac')."""
+    if '.' in file_path:
+        return file_path.rsplit('.', 1)[-1].lower()
+    return ''
+
+
 def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, album=None, is_podcast=False):
     """Get paginated tracks from the library cache."""
     conn = get_db()
@@ -206,12 +213,21 @@ def get_tracks(page=1, per_page=50, sort="artist", order="asc", search=None, alb
         params + [per_page, offset]
     ).fetchall()
     conn.close()
-    return [dict(r) for r in rows], total
+
+    # Add format to each track
+    tracks = []
+    for r in rows:
+        track = dict(r)
+        track['format'] = _get_format(track.get('file_path', ''))
+        tracks.append(track)
+
+    return tracks, total
 
 
 def get_albums():
     """Get grouped album data for grid view (music only, not podcasts)."""
     conn = get_db()
+    # Get album metadata
     rows = conn.execute("""
         SELECT album, artist, album_artist, artwork_hash,
                COUNT(*) as track_count, MIN(year) as year
@@ -220,8 +236,34 @@ def get_albums():
         GROUP BY album, COALESCE(album_artist, artist)
         ORDER BY COALESCE(album_artist, artist), album
     """).fetchall()
+
+    albums = [dict(r) for r in rows]
+
+    # Get formats for each album
+    format_rows = conn.execute("""
+        SELECT album, COALESCE(album_artist, artist) as group_artist, file_path
+        FROM library_tracks
+        WHERE album IS NOT NULL AND album != '' AND is_podcast = 0
+    """).fetchall()
     conn.close()
-    return [dict(r) for r in rows]
+
+    # Build format sets per album
+    album_formats = {}
+    for row in format_rows:
+        key = (row['album'], row['group_artist'])
+        fmt = _get_format(row['file_path'])
+        if key not in album_formats:
+            album_formats[key] = set()
+        if fmt:
+            album_formats[key].add(fmt)
+
+    # Attach formats to albums
+    for album in albums:
+        key = (album['album'], album.get('album_artist') or album.get('artist'))
+        formats = album_formats.get(key, set())
+        album['formats'] = ','.join(sorted(formats))
+
+    return albums
 
 
 def get_tracks_by_ids(track_ids):

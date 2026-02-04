@@ -193,7 +193,16 @@ var Library = {
                 tdNr.textContent = track.track_nr || '';
 
                 var tdTitle = document.createElement('td');
-                tdTitle.textContent = track.title || 'Unknown';
+                var trackTitle = track.title || 'Unknown';
+                if (WebPod.showFormatTags && track.format) {
+                    var formatSpan = document.createElement('span');
+                    formatSpan.className = 'format-tag';
+                    formatSpan.textContent = track.format.toUpperCase();
+                    tdTitle.textContent = trackTitle;
+                    tdTitle.appendChild(formatSpan);
+                } else {
+                    tdTitle.textContent = trackTitle;
+                }
 
                 var tdArtist = document.createElement('td');
                 tdArtist.textContent = track.artist || 'Unknown';
@@ -379,7 +388,20 @@ var Library = {
 
         var title = document.createElement('div');
         title.className = 'album-expansion-title';
-        title.textContent = albumData.album || 'Unknown Album';
+        var albumTitle = albumData.album || 'Unknown Album';
+
+        // Add format tag if setting enabled and all tracks are same format
+        var formats = (albumData.formats || '').split(',').filter(Boolean);
+        var isHomogeneous = formats.length === 1;
+        if (WebPod.showFormatTags && isHomogeneous && formats[0]) {
+            var formatTag = document.createElement('span');
+            formatTag.className = 'format-tag';
+            formatTag.textContent = formats[0].toUpperCase();
+            title.textContent = albumTitle;
+            title.appendChild(formatTag);
+        } else {
+            title.textContent = albumTitle;
+        }
 
         var artist = document.createElement('div');
         artist.className = 'album-expansion-artist';
@@ -407,6 +429,11 @@ var Library = {
 
         var discNumbers = Object.keys(discGroups).map(Number).sort(function(a, b) { return a - b; });
         var hasMultipleDiscs = discNumbers.length > 1 || (discNumbers.length === 1 && discNumbers[0] > 1);
+
+        // Check if tracks have mixed formats (for format tag display)
+        var trackFormats = tracks.map(function(t) { return t.format; }).filter(Boolean);
+        var uniqueFormats = trackFormats.filter(function(f, i, arr) { return arr.indexOf(f) === i; });
+        var showTrackFormats = WebPod.showFormatTags && uniqueFormats.length > 1;
 
         // Render each disc section
         discNumbers.forEach(function(discNum) {
@@ -442,7 +469,16 @@ var Library = {
 
                 var titleSpan = document.createElement('span');
                 titleSpan.className = 'expansion-track-title';
-                titleSpan.textContent = track.title || 'Unknown';
+                var trackTitle = track.title || 'Unknown';
+                if (showTrackFormats && track.format) {
+                    var formatSpan = document.createElement('span');
+                    formatSpan.className = 'format-tag';
+                    formatSpan.textContent = track.format.toUpperCase();
+                    titleSpan.textContent = trackTitle;
+                    titleSpan.appendChild(formatSpan);
+                } else {
+                    titleSpan.textContent = trackTitle;
+                }
 
                 var duration = document.createElement('span');
                 duration.className = 'expansion-track-duration';
@@ -598,7 +634,22 @@ var Library = {
         // Update title and artist
         var title = panel.querySelector('.album-expansion-title');
         var artist = panel.querySelector('.album-expansion-artist');
-        title.textContent = albumData.album || 'Unknown Album';
+        var albumTitle = albumData.album || 'Unknown Album';
+
+        // Add format tag if setting enabled and all tracks are same format
+        var formats = (albumData.formats || '').split(',').filter(Boolean);
+        var isHomogeneous = formats.length === 1;
+        title.innerHTML = '';
+        if (WebPod.showFormatTags && isHomogeneous && formats[0]) {
+            title.textContent = albumTitle;
+            var formatTag = document.createElement('span');
+            formatTag.className = 'format-tag';
+            formatTag.textContent = formats[0].toUpperCase();
+            title.appendChild(formatTag);
+        } else {
+            title.textContent = albumTitle;
+        }
+
         artist.textContent = albumData.artist || 'Unknown Artist';
         if (albumData.year) {
             artist.textContent += ' (' + albumData.year + ')';
@@ -628,6 +679,11 @@ var Library = {
 
         var discNumbers = Object.keys(discGroups).map(Number).sort(function(a, b) { return a - b; });
         var hasMultipleDiscs = discNumbers.length > 1 || (discNumbers.length === 1 && discNumbers[0] > 1);
+
+        // Check if tracks have mixed formats (for format tag display)
+        var trackFormats = tracks.map(function(t) { return t.format; }).filter(Boolean);
+        var uniqueFormats = trackFormats.filter(function(f, i, arr) { return arr.indexOf(f) === i; });
+        var showTrackFormats = WebPod.showFormatTags && uniqueFormats.length > 1;
 
         // Render each disc section
         discNumbers.forEach(function(discNum) {
@@ -663,7 +719,16 @@ var Library = {
 
                 var titleSpan = document.createElement('span');
                 titleSpan.className = 'expansion-track-title';
-                titleSpan.textContent = track.title || 'Unknown';
+                var trackTitle = track.title || 'Unknown';
+                if (showTrackFormats && track.format) {
+                    var formatSpan = document.createElement('span');
+                    formatSpan.className = 'format-tag';
+                    formatSpan.textContent = track.format.toUpperCase();
+                    titleSpan.textContent = trackTitle;
+                    titleSpan.appendChild(formatSpan);
+                } else {
+                    titleSpan.textContent = trackTitle;
+                }
 
                 var duration = document.createElement('span');
                 duration.className = 'expansion-track-duration';

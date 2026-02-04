@@ -389,6 +389,22 @@ body {
     margin-top: 4px;
 }
 
+/* Format tags for album/track types */
+.format-tag {
+    display: inline-flex;
+    align-items: center;
+    background-color: rgba(0, 120, 212, 0.15);
+    color: var(--accent);
+    border: 1px solid rgba(0, 120, 212, 0.3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    margin-left: 8px;
+    cursor: default;
+}
+
 /* ─── Track Table ────────────────────────────────── */
 
 #tracks-table, #ipod-tracks-table {
@@ -711,6 +727,19 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
 }
 
 /* ─── Podcast Series Grid ────────────────────────── */

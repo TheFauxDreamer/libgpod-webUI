@@ -230,6 +230,7 @@ var WebPod = {
             WebPod.musicPath = data.music_path || '';
             WebPod.podcastPath = data.podcast_path || '';
             WebPod.exportPath = data.export_path || '';
+            WebPod.showFormatTags = data.show_format_tags || false;
         }).catch(function() {
             // Settings not available
         });
@@ -249,12 +250,14 @@ var WebPod = {
         var musicScanBtn = document.getElementById('music-scan-btn');
         var podcastScanBtn = document.getElementById('podcast-scan-btn');
         var exportBtn = document.getElementById('export-btn');
+        var formatTagsCheckbox = document.getElementById('show-format-tags');
 
         // Open settings dialog
         settingsBtn.addEventListener('click', function() {
             musicInput.value = WebPod.musicPath || '';
             podcastInput.value = WebPod.podcastPath || '';
             exportInput.value = WebPod.exportPath || '';
+            formatTagsCheckbox.checked = WebPod.showFormatTags || false;
             musicScanBtn.disabled = !WebPod.musicPath;
             podcastScanBtn.disabled = !WebPod.podcastPath;
             // Export button enabled only if iPod is connected
@@ -349,21 +352,30 @@ var WebPod = {
             var musicPath = musicInput.value.trim();
             var podcastPath = podcastInput.value.trim();
             var exportPath = exportInput.value.trim();
+            var showFormatTags = formatTagsCheckbox.checked;
 
             WebPod.api('/api/settings', {
                 method: 'POST',
                 body: {
                     music_path: musicPath,
                     podcast_path: podcastPath,
-                    export_path: exportPath
+                    export_path: exportPath,
+                    show_format_tags: showFormatTags
                 }
             }).then(function() {
                 WebPod.musicPath = musicPath;
                 WebPod.podcastPath = podcastPath;
                 WebPod.exportPath = exportPath;
+                WebPod.showFormatTags = showFormatTags;
                 WebPod.loadSettings();
                 dialog.classList.add('hidden');
                 WebPod.toast('Settings saved', 'success');
+                // Reload current view to apply format tag changes
+                if (WebPod.currentView === 'albums') {
+                    Library.loadAlbums();
+                } else if (WebPod.currentView === 'tracks') {
+                    Library.loadTracks();
+                }
 
                 // Auto-scan music library if path is set
                 if (musicPath) {
