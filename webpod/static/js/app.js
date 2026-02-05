@@ -9,6 +9,7 @@ var WebPod = {
     searchTimeout: null,
     skipSearchHandler: false,  // Flag to skip search when setting input programmatically
     theme: 'dark',
+    accentColor: 'blue',
     selectedFormats: ['all'],  // Default to all formats
     lastSearchQuery: '',  // Track last search to avoid duplicate calls
     currentSearchQuery: null,  // Track current in-flight search query to avoid race conditions
@@ -78,6 +79,13 @@ var WebPod = {
         } else {
             document.documentElement.setAttribute('data-theme', theme);
         }
+    },
+
+    /**
+     * Apply accent color setting
+     */
+    applyAccentColor: function() {
+        document.documentElement.setAttribute('data-accent', WebPod.accentColor);
     },
 
     /**
@@ -628,6 +636,8 @@ var WebPod = {
             WebPod.transcodeFlacFormat = data.transcode_flac_format || 'alac';  // Default to ALAC
             WebPod.theme = data.theme || 'auto';
             WebPod.applyTheme();
+            WebPod.accentColor = data.accent_color || 'blue';
+            WebPod.applyAccentColor();
         }).catch(function() {
             // Settings not available
         });
@@ -654,6 +664,7 @@ var WebPod = {
         var transcodeFlacFormat = document.getElementById('transcode-flac-format');
         var transcodeFormatGroup = document.getElementById('transcode-format-group');
         var themeSelect = document.getElementById('theme-select');
+        var accentColorSelect = document.getElementById('accent-color-select');
 
         // Show/hide format dropdown based on checkbox
         transcodeFlacCheckbox.addEventListener('change', function() {
@@ -675,6 +686,7 @@ var WebPod = {
             transcodeFlacCheckbox.checked = WebPod.transcodeFlacToIpod !== false;  // Default to true (enabled)
             transcodeFlacFormat.value = WebPod.transcodeFlacFormat || 'alac';  // Default to ALAC
             themeSelect.value = WebPod.theme || 'auto';
+            accentColorSelect.value = WebPod.accentColor || 'blue';
 
             // Update format dropdown visibility
             if (transcodeFlacCheckbox.checked) {
@@ -782,6 +794,7 @@ var WebPod = {
             var transcodeFlac = transcodeFlacCheckbox.checked;
             var transcodeFormat = transcodeFlacFormat.value;
             var theme = themeSelect.value;
+            var accentColor = accentColorSelect.value;
 
             WebPod.api('/api/settings', {
                 method: 'POST',
@@ -794,7 +807,8 @@ var WebPod = {
                     allow_files_without_metadata: allowNoMetadata,
                     transcode_flac_to_ipod: transcodeFlac,
                     transcode_flac_format: transcodeFormat,
-                    theme: theme
+                    theme: theme,
+                    accent_color: accentColor
                 }
             }).then(function() {
                 WebPod.musicPath = musicPath;
@@ -807,6 +821,8 @@ var WebPod = {
                 WebPod.transcodeFlacFormat = transcodeFormat;
                 WebPod.theme = theme;
                 WebPod.applyTheme();
+                WebPod.accentColor = accentColor;
+                WebPod.applyAccentColor();
                 WebPod.loadSettings();
                 dialog.classList.add('hidden');
                 WebPod.toast('Settings saved', 'success');

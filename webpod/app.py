@@ -69,6 +69,7 @@ def get_settings():
     show_format_tags = show_format_tags_setting != '0'  # Default to True
     colorful_albums = models.get_setting('colorful_albums') != '0'  # Default to True
     theme = models.get_setting('theme') or 'auto'
+    accent_color = models.get_setting('accent_color') or 'blue'
     allow_no_metadata_setting = models.get_setting('allow_files_without_metadata')
     # Default to False (disallow) if not set - cleaner libraries by default
     allow_no_metadata = allow_no_metadata_setting == '1'
@@ -90,6 +91,7 @@ def get_settings():
         'show_format_tags': show_format_tags,
         'colorful_albums': colorful_albums,
         'theme': theme,
+        'accent_color': accent_color,
         'allow_files_without_metadata': allow_no_metadata,
         'transcode_flac_to_ipod': transcode_flac_enabled,
         'transcode_flac_format': transcode_format
@@ -128,6 +130,12 @@ def save_settings():
         theme = data['theme']
         if theme in ('light', 'dark', 'auto'):
             models.set_setting('theme', theme)
+
+    if 'accent_color' in data:
+        color = data['accent_color']
+        valid_colors = ('blue', 'rainbow', 'red', 'green', 'orange', 'purple', 'cyan', 'pink')
+        if color in valid_colors:
+            models.set_setting('accent_color', color)
 
     if 'allow_files_without_metadata' in data:
         models.set_setting('allow_files_without_metadata', '1' if data['allow_files_without_metadata'] else '0')

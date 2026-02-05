@@ -117,8 +117,15 @@ var Player = {
         document.getElementById('main-layout').classList.add('player-active');
 
         // Track info
-        document.getElementById('player-title').textContent = track.title || 'Unknown';
-        document.getElementById('player-artist').textContent = track.artist || 'Unknown Artist';
+        var titleEl = document.getElementById('player-title');
+        var artistEl = document.getElementById('player-artist');
+
+        titleEl.textContent = track.title || 'Unknown';
+        artistEl.textContent = track.artist || 'Unknown Artist';
+
+        // Enable scrolling for overflowing text
+        Player.updateScrollingText(titleEl);
+        Player.updateScrollingText(artistEl);
 
         // Artwork
         var artImg = document.getElementById('player-artwork');
@@ -236,6 +243,24 @@ var Player = {
         for (var j = 0; j < rows.length; j++) {
             rows[j].classList.add('playing');
         }
+    },
+
+    /**
+     * Enable scrolling animation for text that overflows its container
+     */
+    updateScrollingText: function(element) {
+        // Remove existing scrolling state
+        element.classList.remove('scrolling');
+        element.removeAttribute('data-text');
+
+        // Wait for next frame to measure after text update
+        requestAnimationFrame(function() {
+            // Check if text overflows
+            if (element.scrollWidth > element.clientWidth) {
+                element.classList.add('scrolling');
+                element.setAttribute('data-text', element.textContent);
+            }
+        });
     }
 };
 
