@@ -332,6 +332,38 @@ def remove_missing_files():
     return len(missing_ids)
 
 
+def remove_files_without_metadata_if_disabled():
+    """Remove tracks without meaningful metadata if setting is disabled.
+
+    This ensures that when users disable the 'allow_files_without_metadata' setting,
+    files without metadata are removed from the database during the next scan.
+    """
+    allow_no_metadata = get_setting('allow_files_without_metadata')
+    if allow_no_metadata == '1':
+        return 0  # Setting allows files without metadata, do nothing
+
+    # Setting disallows files without metadata - remove any that exist
+    conn = get_db()
+    rows = conn.execute("""
+        SELECT id FROM library_tracks
+        WHERE (artist IS NULL OR artist = '')
+          AND (album IS NULL OR album = '')
+          AND (album_artist IS NULL OR album_artist = '')
+          AND (genre IS NULL OR genre = '')
+          AND (year IS NULL)
+          AND (track_nr IS NULL)
+    """).fetchall()
+
+    ids_to_remove = [row["id"] for row in rows]
+    if ids_to_remove:
+        placeholders = ",".join("?" for _ in ids_to_remove)
+        conn.execute(f"DELETE FROM library_tracks WHERE id IN ({placeholders})", ids_to_remove)
+        conn.commit()
+
+    conn.close()
+    return len(ids_to_remove)
+
+
 # ─── Podcast Functions ────────────────────────────────────────────────
 
 def get_podcast_series():

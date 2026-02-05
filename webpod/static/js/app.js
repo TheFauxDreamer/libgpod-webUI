@@ -601,6 +601,7 @@ var WebPod = {
             WebPod.exportPath = data.export_path || '';
             WebPod.showFormatTags = data.show_format_tags !== false;  // Default to true
             WebPod.colorfulAlbums = data.colorful_albums !== false;  // Default to true
+            WebPod.allowFilesWithoutMetadata = data.allow_files_without_metadata === true;  // Default to false (unchecked)
             WebPod.theme = data.theme || 'auto';
             WebPod.applyTheme();
         }).catch(function() {
@@ -624,6 +625,7 @@ var WebPod = {
         var exportBtn = document.getElementById('export-btn');
         var formatTagsCheckbox = document.getElementById('show-format-tags');
         var colorfulAlbumsCheckbox = document.getElementById('colorful-albums');
+        var allowNoMetadataCheckbox = document.getElementById('allow-files-without-metadata');
         var themeSelect = document.getElementById('theme-select');
 
         // Open settings dialog
@@ -633,6 +635,7 @@ var WebPod = {
             exportInput.value = WebPod.exportPath || '';
             formatTagsCheckbox.checked = WebPod.showFormatTags || false;
             colorfulAlbumsCheckbox.checked = WebPod.colorfulAlbums !== false;  // Default to true
+            allowNoMetadataCheckbox.checked = WebPod.allowFilesWithoutMetadata === true;  // Default to false (unchecked)
             themeSelect.value = WebPod.theme || 'auto';
             musicScanBtn.disabled = !WebPod.musicPath;
             podcastScanBtn.disabled = !WebPod.podcastPath;
@@ -730,6 +733,7 @@ var WebPod = {
             var exportPath = exportInput.value.trim();
             var showFormatTags = formatTagsCheckbox.checked;
             var colorfulAlbums = colorfulAlbumsCheckbox.checked;
+            var allowNoMetadata = allowNoMetadataCheckbox.checked;
             var theme = themeSelect.value;
 
             WebPod.api('/api/settings', {
@@ -740,6 +744,7 @@ var WebPod = {
                     export_path: exportPath,
                     show_format_tags: showFormatTags,
                     colorful_albums: colorfulAlbums,
+                    allow_files_without_metadata: allowNoMetadata,
                     theme: theme
                 }
             }).then(function() {
@@ -748,6 +753,7 @@ var WebPod = {
                 WebPod.exportPath = exportPath;
                 WebPod.showFormatTags = showFormatTags;
                 WebPod.colorfulAlbums = colorfulAlbums;
+                WebPod.allowFilesWithoutMetadata = allowNoMetadata;
                 WebPod.theme = theme;
                 WebPod.applyTheme();
                 WebPod.loadSettings();

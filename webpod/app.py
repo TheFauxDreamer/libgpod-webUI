@@ -64,6 +64,9 @@ def get_settings():
     show_format_tags = show_format_tags_setting != '0'  # Default to True
     colorful_albums = models.get_setting('colorful_albums') != '0'  # Default to True
     theme = models.get_setting('theme') or 'auto'
+    allow_no_metadata_setting = models.get_setting('allow_files_without_metadata')
+    # Default to False (disallow) if not set - cleaner libraries by default
+    allow_no_metadata = allow_no_metadata_setting == '1'
     return jsonify({
         'music_path': music_path,
         'podcast_path': podcast_path,
@@ -74,7 +77,8 @@ def get_settings():
         'podcast_count': models.get_track_count(is_podcast=True),
         'show_format_tags': show_format_tags,
         'colorful_albums': colorful_albums,
-        'theme': theme
+        'theme': theme,
+        'allow_files_without_metadata': allow_no_metadata
     })
 
 
@@ -110,6 +114,9 @@ def save_settings():
         theme = data['theme']
         if theme in ('light', 'dark', 'auto'):
             models.set_setting('theme', theme)
+
+    if 'allow_files_without_metadata' in data:
+        models.set_setting('allow_files_without_metadata', '1' if data['allow_files_without_metadata'] else '0')
 
     return jsonify({"success": True})
 

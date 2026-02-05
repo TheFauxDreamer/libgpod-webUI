@@ -7,12 +7,13 @@ from mutagen import File as MutagenFile
 from mutagen.mp3 import MP3
 from mutagen.mp4 import MP4
 from mutagen.flac import FLAC
+from mutagen.wave import WAVE
 
 from . import models
 from . import artwork as artwork_module
 from .duplicate_detector import sha1_hash
 
-SUPPORTED_EXTENSIONS = {'.mp3', '.m4a', '.aac', '.mp4', '.flac'}
+SUPPORTED_EXTENSIONS = {'.mp3', '.m4a', '.aac', '.mp4', '.flac', '.wav'}
 
 
 def _extract_metadata(file_path):
@@ -160,6 +161,65 @@ def _extract_metadata(file_path):
             except (ValueError, IndexError):
                 pass
 
+    elif isinstance(audio, WAVE):
+        # WAV files can have ID3 tags or INFO tags
+        if audio.tags:
+            # Check for ID3 tags first (more common)
+            # ID3 tags in WAV files use the same structure as MP3
+            tag_map = {
+                'TPE1': 'artist',
+                'TIT2': 'title',
+                'TALB': 'album',
+                'TPE2': 'album_artist',
+                'TCON': 'genre',
+            }
+            for frame_id, field in tag_map.items():
+                frame = audio.tags.get(frame_id)
+                if frame and hasattr(frame, 'text') and frame.text:
+                    meta[field] = str(frame.text[0])
+
+            # Track number
+            trck = audio.tags.get('TRCK')
+            if trck and hasattr(trck, 'text') and trck.text:
+                parts = str(trck.text[0]).split('/')
+                try:
+                    meta['track_nr'] = int(parts[0])
+                except ValueError:
+                    pass
+
+            # Disc number
+            tpos = audio.tags.get('TPOS')
+            if tpos and hasattr(tpos, 'text') and tpos.text:
+                parts = str(tpos.text[0]).split('/')
+                try:
+                    meta['cd_nr'] = int(parts[0])
+                except ValueError:
+                    pass
+
+            # Year
+            tdrc = audio.tags.get('TDRC')
+            if tdrc and hasattr(tdrc, 'text') and tdrc.text:
+                try:
+                    meta['year'] = int(str(tdrc.text[0])[:4])
+                except (ValueError, IndexError):
+                    pass
+
+        # Check for INFO tags (older RIFF INFO format)
+        # INFO tags are stored as dictionary-like attributes
+        if hasattr(audio, 'info') and hasattr(audio.info, 'tags'):
+            info_tags = audio.info.tags
+            if info_tags:
+                info_map = {
+                    'INAM': 'title',      # Title
+                    'IART': 'artist',     # Artist
+                    'IPRD': 'album',      # Album (Product)
+                    'IGNR': 'genre',      # Genre
+                }
+                for info_key, field in info_map.items():
+                    val = info_tags.get(info_key)
+                    if val and not meta[field]:  # Don't override ID3 tags
+                        meta[field] = str(val)
+
     # Fallback title to filename
     if not meta['title']:
         meta['title'] = Path(file_path).stem
@@ -210,6 +270,23 @@ def scan_directory(library_path, progress_callback=None, is_podcast=False):
         if meta is None:
             continue
 
+        # Check if file has meaningful metadata (beyond just filename/duration)
+        has_metadata = bool(
+            meta.get('artist') or
+            meta.get('album') or
+            meta.get('album_artist') or
+            meta.get('genre') or
+            meta.get('year') or
+            meta.get('track_nr')
+        )
+
+        # If no metadata, check user setting
+        if not has_metadata:
+            allow_no_metadata = models.get_setting('allow_files_without_metadata')
+            # Default to '0' (disallow) if not set - only add files with metadata by default
+            if allow_no_metadata != '1':
+                continue  # Skip file
+
         # Compute hash for duplicate detection
         try:
             file_hash = sha1_hash(file_str)
@@ -236,6 +313,12 @@ def scan_directory(library_path, progress_callback=None, is_podcast=False):
 
     # Clean up files that no longer exist
     models.remove_missing_files()
+
+    # Clean up files without metadata if setting is disabled
+    removed_count = models.remove_files_without_metadata_if_disabled()
+    if removed_count > 0 and progress_callback:
+        # Notify about cleanup
+        progress_callback(total, total, f"Removed {removed_count} files without metadata")
 
     if progress_callback:
         progress_callback(total, total, "Done")
