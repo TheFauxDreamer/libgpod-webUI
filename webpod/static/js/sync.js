@@ -122,6 +122,12 @@ var Sync = {
                     text += ' - ' + parts[parts.length - 1];
                 }
                 Sync.showProgress(text, percent);
+
+                // Add tooltip to show full text on hover
+                var progressText = document.getElementById('progress-text');
+                if (progressText) {
+                    progressText.title = text;
+                }
             });
 
             // Scan complete

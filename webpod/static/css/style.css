@@ -111,7 +111,8 @@ body {
 }
 
 #progress-bar {
-    flex: 1;
+    width: 200px;
+    flex-shrink: 0;
     height: 6px;
     background: var(--border-color);
     border-radius: 3px;
@@ -130,6 +131,11 @@ body {
     font-size: 12px;
     color: var(--text-secondary);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    cursor: default;
 }
 
 /* ─── Main Layout ────────────────────────────────── */

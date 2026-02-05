@@ -238,70 +238,129 @@ var WebPod = {
         var filterBtn = document.getElementById('format-filter-btn');
         var dropdown = document.getElementById('format-filter-dropdown');
         var label = document.getElementById('format-filter-label');
-        var checkboxes = dropdown.querySelectorAll('input[type="checkbox"]');
-        var allCheckbox = dropdown.querySelector('[data-format-all]');
 
-        // Toggle dropdown
-        filterBtn.addEventListener('click', function(e) {
-            e.stopPropagation();
-            dropdown.classList.toggle('hidden');
-        });
+        // Fetch available formats from the API and populate dropdown
+        WebPod.api('/api/library/formats').then(function(data) {
+            var formats = data.formats || [];
+            var optionsContainer = dropdown.querySelector('.format-filter-options');
 
-        // Close on outside click
-        document.addEventListener('click', function() {
-            dropdown.classList.add('hidden');
-        });
+            // Clear existing checkboxes (except the template ones in HTML)
+            optionsContainer.innerHTML = '';
 
-        dropdown.addEventListener('click', function(e) {
-            e.stopPropagation();
-        });
+            // Add "All Formats" checkbox
+            var allLabel = document.createElement('label');
+            allLabel.className = 'format-checkbox';
+            var allCheckbox = document.createElement('input');
+            allCheckbox.type = 'checkbox';
+            allCheckbox.value = 'all';
+            allCheckbox.checked = true;
+            allCheckbox.setAttribute('data-format-all', '');
+            var allSpan = document.createElement('span');
+            allSpan.textContent = 'All Formats';
+            allLabel.appendChild(allCheckbox);
+            allLabel.appendChild(allSpan);
+            optionsContainer.appendChild(allLabel);
 
-        // Handle checkbox changes
-        checkboxes.forEach(function(checkbox) {
-            checkbox.addEventListener('change', function() {
-                if (checkbox === allCheckbox) {
-                    if (checkbox.checked) {
-                        checkboxes.forEach(function(cb) { cb.checked = true; });
-                        WebPod.selectedFormats = ['all'];
-                    }
-                } else {
-                    if (!checkbox.checked) {
-                        allCheckbox.checked = false;
-                    }
-                    var allIndividualsChecked = Array.from(checkboxes).every(function(cb) {
-                        return cb === allCheckbox || cb.checked;
-                    });
-                    if (allIndividualsChecked) {
-                        allCheckbox.checked = true;
-                    }
-                }
+            // Add divider
+            var divider = document.createElement('div');
+            divider.className = 'dropdown-divider';
+            optionsContainer.appendChild(divider);
 
-                // Update selected formats
-                if (allCheckbox.checked) {
-                    WebPod.selectedFormats = ['all'];
-                    label.textContent = 'All Formats';
-                } else {
-                    WebPod.selectedFormats = [];
-                    checkboxes.forEach(function(cb) {
-                        if (cb !== allCheckbox && cb.checked) {
-                            WebPod.selectedFormats.push(cb.value);
-                        }
-                    });
-
-                    if (WebPod.selectedFormats.length === 0) {
-                        label.textContent = 'No formats';
-                    } else if (WebPod.selectedFormats.length === 1) {
-                        label.textContent = WebPod.selectedFormats[0].toUpperCase();
-                    } else {
-                        label.textContent = WebPod.selectedFormats.length + ' formats';
-                    }
-                }
-
-                // Trigger search refresh with new filters
-                if (WebPod.lastSearchQuery) {
-                    WebPod.performSearch(WebPod.lastSearchQuery);
-                }
+            // Add checkboxes for each available format
+            formats.forEach(function(format) {
+                var formatLabel = document.createElement('label');
+                formatLabel.className = 'format-checkbox';
+                var formatCheckbox = document.createElement('input');
+                formatCheckbox.type = 'checkbox';
+                formatCheckbox.value = format;
+                formatCheckbox.checked = true;
+                var formatSpan = document.createElement('span');
+                formatSpan.textContent = format.toUpperCase();
+                formatLabel.appendChild(formatCheckbox);
+                formatLabel.appendChild(formatSpan);
+                optionsContainer.appendChild(formatLabel);
             });
+
+            // Now set up event handlers
+            var checkboxes = optionsContainer.querySelectorAll('input[type="checkbox"]');
+            var allCheckbox = optionsContainer.querySelector('[data-format-all]');
+
+            // Toggle dropdown
+            filterBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                dropdown.classList.toggle('hidden');
+            });
+
+            // Close on outside click
+            document.addEventListener('click', function() {
+                dropdown.classList.add('hidden');
+            });
+
+            dropdown.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
+
+            // Handle checkbox changes
+            checkboxes.forEach(function(checkbox) {
+                checkbox.addEventListener('change', function() {
+                    if (checkbox === allCheckbox) {
+                        if (checkbox.checked) {
+                            checkboxes.forEach(function(cb) { cb.checked = true; });
+                            WebPod.selectedFormats = ['all'];
+                        }
+                    } else {
+                        // SOFT-LOCK FIX: Prevent unchecking the last format
+                        var checkedIndividuals = Array.from(checkboxes).filter(function(cb) {
+                            return cb !== allCheckbox && cb.checked;
+                        });
+
+                        // If user is trying to uncheck the last format, prevent it
+                        if (checkedIndividuals.length === 0) {
+                            checkbox.checked = true;
+                            return;
+                        }
+
+                        // Uncheck "All" when any individual is unchecked
+                        if (!checkbox.checked) {
+                            allCheckbox.checked = false;
+                        }
+
+                        // Check "All" if all individuals are checked
+                        var allIndividualsChecked = Array.from(checkboxes).every(function(cb) {
+                            return cb === allCheckbox || cb.checked;
+                        });
+                        if (allIndividualsChecked) {
+                            allCheckbox.checked = true;
+                        }
+                    }
+
+                    // Update selected formats
+                    if (allCheckbox.checked) {
+                        WebPod.selectedFormats = ['all'];
+                        label.textContent = 'All Formats';
+                    } else {
+                        WebPod.selectedFormats = [];
+                        checkboxes.forEach(function(cb) {
+                            if (cb !== allCheckbox && cb.checked) {
+                                WebPod.selectedFormats.push(cb.value);
+                            }
+                        });
+
+                        if (WebPod.selectedFormats.length === 1) {
+                            label.textContent = WebPod.selectedFormats[0].toUpperCase();
+                        } else {
+                            label.textContent = WebPod.selectedFormats.length + ' formats';
+                        }
+                    }
+
+                    // Trigger search refresh with new filters
+                    if (WebPod.lastSearchQuery) {
+                        WebPod.performSearch(WebPod.lastSearchQuery);
+                    }
+                });
+            });
+        }).catch(function(err) {
+            console.error('Failed to load available formats:', err);
         });
     },
 
@@ -379,7 +438,7 @@ var WebPod = {
             albumsSection.style.display = 'block';
             albumsGrid.innerHTML = '';
             data.albums.forEach(function(album) {
-                var card = Library.createAlbumCard(album);
+                var card = Library.createAlbumCard(album, true);  // forSearch = true
                 albumsGrid.appendChild(card);
             });
 
@@ -448,10 +507,9 @@ var WebPod = {
             podcastsSection.style.display = 'none';
         }
 
-        // If no results at all, show message
+        // If no results at all, show empty state
         if (data.albums.length === 0 && data.tracks.length === 0 && data.podcasts.length === 0) {
-            results.innerHTML = '<div class="search-empty"><p>No results found for "' +
-                WebPod.lastSearchQuery + '"</p></div>';
+            WebPod.showSearchEmptyState();
         }
     },
 

@@ -303,6 +303,22 @@ def get_track_count(is_podcast=None):
     return row["cnt"]
 
 
+def get_available_formats():
+    """Get list of audio formats available in the library."""
+    conn = get_db()
+    rows = conn.execute("SELECT DISTINCT file_path FROM library_tracks").fetchall()
+    conn.close()
+
+    # Extract formats from file paths
+    formats = set()
+    for row in rows:
+        fmt = _get_format(row['file_path'])
+        if fmt:
+            formats.add(fmt)
+
+    return sorted(formats)
+
+
 def remove_missing_files():
     """Remove tracks whose files no longer exist on disk."""
     conn = get_db()

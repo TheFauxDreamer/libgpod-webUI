@@ -38,11 +38,13 @@ var Library = {
 
     /**
      * Create an album card element
+     * @param {object} album - Album data
+     * @param {boolean} forSearch - If true, disable expansion (search results view)
      */
-    createAlbumCard: function(album) {
+    createAlbumCard: function(album, forSearch) {
         var card = document.createElement('div');
         card.className = 'album-card';
-        card.draggable = true;
+        card.draggable = !forSearch;  // Only draggable in main albums view
 
         var img = document.createElement('img');
         if (album.artwork_hash) {
@@ -81,16 +83,18 @@ var Library = {
             Library.loadAlbumTracks(album.album, album, card);
         });
 
-        // Drag support
-        card.addEventListener('dragstart', function(e) {
-            var dragData = JSON.stringify({
-                type: 'album',
-                album: album.album,
-                artist: album.artist
+        // Drag support (only in main albums view, not in search)
+        if (!forSearch) {
+            card.addEventListener('dragstart', function(e) {
+                var dragData = JSON.stringify({
+                    type: 'album',
+                    album: album.album,
+                    artist: album.artist
+                });
+                e.dataTransfer.setData('text/plain', dragData);
+                e.dataTransfer.effectAllowed = 'copy';
             });
-            e.dataTransfer.setData('text/plain', dragData);
-            e.dataTransfer.effectAllowed = 'copy';
-        });
+        }
 
         return card;
     },
@@ -619,7 +623,8 @@ var Library = {
         panel.appendChild(artContainer);
 
         // Calculate grid position to insert after the last album in this row
-        var grid = document.getElementById('albums-grid');
+        // Use the card's parent element to work in both main view and search results
+        var grid = albumCard.parentElement;
         var cards = Array.from(grid.querySelectorAll('.album-card'));
         var cardIndex = cards.indexOf(albumCard);
 
@@ -881,7 +886,8 @@ var Library = {
         // Check if we're switching albums within the same row
         var sameRow = false;
         if (Library.expandedAlbumCard) {
-            var grid = document.getElementById('albums-grid');
+            // Use the card's parent element to work in both main view and search results
+            var grid = albumCard.parentElement;
             var cards = Array.from(grid.querySelectorAll('.album-card'));
             var gridStyle = window.getComputedStyle(grid);
             var columns = gridStyle.getPropertyValue('grid-template-columns').split(' ').length;

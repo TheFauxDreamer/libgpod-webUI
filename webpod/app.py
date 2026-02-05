@@ -303,6 +303,13 @@ def library_all_track_ids():
     })
 
 
+@app.route('/api/library/formats', methods=['GET'])
+def library_formats():
+    """Get available audio formats in the library."""
+    formats = models.get_available_formats()
+    return jsonify({'formats': formats})
+
+
 @app.route('/api/artwork/<artwork_hash>')
 def serve_artwork(artwork_hash):
     path = get_artwork_path(artwork_hash)
