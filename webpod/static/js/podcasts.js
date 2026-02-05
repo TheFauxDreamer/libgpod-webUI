@@ -141,6 +141,12 @@ var Podcasts = {
                         Podcasts.handleEpisodeClick(e, ep.id, index);
                     });
 
+                    // Double-click to play
+                    tr.addEventListener('dblclick', function(e) {
+                        e.preventDefault();
+                        Player.playTrack(ep, Podcasts.allEpisodes, index);
+                    });
+
                     // Drag support
                     tr.addEventListener('dragstart', function(e) {
                         if (Podcasts.selectedEpisodeIds.indexOf(ep.id) === -1) {

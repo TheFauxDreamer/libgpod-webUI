@@ -481,6 +481,33 @@ def serve_artwork(artwork_hash):
     return '', 404
 
 
+# ─── Audio Streaming API ─────────────────────────────────────────────
+
+AUDIO_MIME_TYPES = {
+    '.mp3': 'audio/mpeg',
+    '.m4a': 'audio/mp4',
+    '.aac': 'audio/mp4',
+    '.mp4': 'audio/mp4',
+    '.flac': 'audio/flac',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+}
+
+
+@app.route('/api/library/stream/<int:track_id>')
+def stream_track(track_id):
+    """Stream an audio file for browser playback."""
+    tracks = models.get_tracks_by_ids([track_id])
+    if not tracks:
+        return '', 404
+    file_path = tracks[0]['file_path']
+    if not os.path.isfile(file_path):
+        return '', 404
+    ext = Path(file_path).suffix.lower()
+    mimetype = AUDIO_MIME_TYPES.get(ext, 'application/octet-stream')
+    return send_file(file_path, mimetype=mimetype, conditional=True)
+
+
 # ─── iPod API ────────────────────────────────────────────────────────
 
 @app.route('/api/ipod/detect', methods=['GET'])

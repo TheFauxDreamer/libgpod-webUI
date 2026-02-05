@@ -463,12 +463,40 @@
         </div>
     </div>
 
+    <!-- Audio Player Bar -->
+    <div id="player-bar" class="hidden">
+        <audio id="player-audio" preload="auto"></audio>
+        <div class="player-track-info">
+            <img id="player-artwork" src="" alt="" />
+            <div class="player-text">
+                <div id="player-title"></div>
+                <div id="player-artist"></div>
+            </div>
+        </div>
+        <div class="player-controls">
+            <button id="player-prev" class="player-btn" title="Previous">&#9664;&#9664;</button>
+            <button id="player-play" class="player-btn player-btn-main" title="Play/Pause">&#9654;</button>
+            <button id="player-next" class="player-btn" title="Next">&#9654;&#9654;</button>
+        </div>
+        <div class="player-progress">
+            <span id="player-current-time">0:00</span>
+            <div id="player-seekbar">
+                <div id="player-seekbar-fill"></div>
+            </div>
+            <span id="player-total-time">0:00</span>
+        </div>
+        <div class="player-volume">
+            <input type="range" id="player-volume" min="0" max="100" value="100" title="Volume" />
+        </div>
+    </div>
+
     <!-- Notification Toast -->
     <div id="toast" class="hidden"></div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <script src="/static/js/app.js"></script>
     <script src="/static/js/library.js"></script>
+    <script src="/static/js/player.js"></script>
     <script src="/static/js/ipod.js"></script>
     <script src="/static/js/dragdrop.js"></script>
     <script src="/static/js/sync.js"></script>

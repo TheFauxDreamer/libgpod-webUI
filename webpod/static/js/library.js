@@ -190,6 +190,14 @@ var Library = {
         tdDuration.textContent = WebPod.formatDuration(track.duration_ms);
         tr.appendChild(tdDuration);
 
+        // Double-click to play
+        tr.addEventListener('dblclick', function(e) {
+            e.preventDefault();
+            var queue = forSearch ? [track] : Library.allTracks;
+            var qIdx = forSearch ? 0 : index;
+            Player.playTrack(track, queue, qIdx);
+        });
+
         // Click handler (only in main tracks view for selection)
         if (!forSearch) {
             tr.addEventListener('click', function(e) {
@@ -558,6 +566,13 @@ var Library = {
                     Library.handleExpansionTrackClick(e, track.id, globalIndex);
                 });
 
+                // Double-click to play
+                row.addEventListener('dblclick', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    Player.playTrack(track, Library.expansionTracks, globalIndex);
+                });
+
                 // Drag handler
                 row.addEventListener('dragstart', function(e) {
                     if (Library.expansionSelectedIds.indexOf(track.id) === -1) {
@@ -847,6 +862,13 @@ var Library = {
                 row.addEventListener('click', function(e) {
                     e.stopPropagation();
                     Library.handleExpansionTrackClick(e, track.id, globalIndex);
+                });
+
+                // Double-click to play
+                row.addEventListener('dblclick', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    Player.playTrack(track, Library.expansionTracks, globalIndex);
                 });
 
                 row.addEventListener('dragstart', function(e) {
