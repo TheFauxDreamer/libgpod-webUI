@@ -11,6 +11,7 @@ var WebPod = {
     theme: 'dark',
     accentColor: 'blue',
     miniPlayer: false,  // Mini player mode setting
+    compactDiscView: false,  // Compact disc view setting
     selectedFormats: ['all'],  // Default to all formats
     lastSearchQuery: '',  // Track last search to avoid duplicate calls
     currentSearchQuery: null,  // Track current in-flight search query to avoid race conditions
@@ -102,6 +103,16 @@ var WebPod = {
             playerBar.classList.remove('mini-mode');
             mainLayout.classList.remove('mini-player-active');
         }
+    },
+
+    /**
+     * Apply compact disc view setting
+     * Note: Actual max-height is calculated dynamically in library.js
+     * This just stores the preference
+     */
+    applyCompactDiscView: function() {
+        // Setting is applied dynamically when rendering album expansions
+        // No global CSS class needed - handled per-expansion
     },
 
     /**
@@ -656,6 +667,7 @@ var WebPod = {
             WebPod.applyAccentColor();
             WebPod.miniPlayer = data.mini_player === '1';
             WebPod.applyMiniPlayer();
+            WebPod.compactDiscView = data.compact_disc_view === '1';
         }).catch(function() {
             // Settings not available
         });
@@ -676,6 +688,7 @@ var WebPod = {
         var formatTagsCheckbox = document.getElementById('show-format-tags');
         var colorfulAlbumsCheckbox = document.getElementById('colorful-albums');
         var miniPlayerCheckbox = document.getElementById('mini-player');
+        var compactDiscViewCheckbox = document.getElementById('compact-disc-view');
         var allowNoMetadataCheckbox = document.getElementById('allow-files-without-metadata');
         var transcodeFlacCheckbox = document.getElementById('transcode-flac-to-ipod');
         var transcodeFlacFormat = document.getElementById('transcode-flac-format');
@@ -736,6 +749,7 @@ var WebPod = {
             formatTagsCheckbox.checked = WebPod.showFormatTags || false;
             colorfulAlbumsCheckbox.checked = WebPod.colorfulAlbums !== false;  // Default to true
             miniPlayerCheckbox.checked = WebPod.miniPlayer === true;
+            compactDiscViewCheckbox.checked = WebPod.compactDiscView === true;
             allowNoMetadataCheckbox.checked = WebPod.allowFilesWithoutMetadata === true;  // Default to false (unchecked)
             transcodeFlacCheckbox.checked = WebPod.transcodeFlacToIpod !== false;  // Default to true (enabled)
             transcodeFlacFormat.value = WebPod.transcodeFlacFormat || 'alac';  // Default to ALAC
@@ -893,6 +907,7 @@ var WebPod = {
             var accentColor = accentColorSelect.value;
             var colorfulAlbums = colorfulAlbumsCheckbox.checked;
             var miniPlayer = miniPlayerCheckbox.checked;
+            var compactDiscView = compactDiscViewCheckbox.checked;
 
             // Save only Themes category settings
             WebPod.api('/api/settings', {
@@ -901,7 +916,8 @@ var WebPod = {
                     theme: theme,
                     accent_color: accentColor,
                     colorful_albums: colorfulAlbums,
-                    mini_player: miniPlayer
+                    mini_player: miniPlayer,
+                    compact_disc_view: compactDiscView
                 }
             }).then(function() {
                 // Update local state and apply immediately
@@ -912,6 +928,7 @@ var WebPod = {
                 WebPod.colorfulAlbums = colorfulAlbums;
                 WebPod.miniPlayer = miniPlayer;
                 WebPod.applyMiniPlayer();
+                WebPod.compactDiscView = compactDiscView;
 
                 WebPod.loadSettings();
                 WebPod.toast('Theme settings saved', 'success');

@@ -602,6 +602,30 @@ var Library = {
         content.appendChild(header);
         content.appendChild(trackList);
 
+        // Apply disc view logic for multi-disc albums
+        if (!WebPod.compactDiscView && discNumbers.length > 1) {
+            // Compact view is OFF: Show all of Disc 1 + preview of Disc 2
+            var disc1Tracks = discGroups[discNumbers[0]];
+
+            // Calculate Disc 1 dimensions
+            var disc1HeaderHeight = 13;  // First header has no top padding
+            var disc1IsCompact = disc1Tracks.length < 5;  // Single column
+            var disc1Rows = disc1IsCompact ? disc1Tracks.length : Math.ceil(disc1Tracks.length / 2);
+            var disc1TrackHeight = disc1Rows * 27;  // ~27px per row
+            var gapAfterDisc1 = 8;  // flex gap
+
+            // Show preview of Disc 2 header (partial visibility as scroll hint)
+            var disc2HeaderPreview = 25;  // Show ~25px of "Disc 2" text
+
+            var calculatedMaxHeight = disc1HeaderHeight + disc1TrackHeight + gapAfterDisc1 + disc2HeaderPreview;
+
+            // Apply calculated max-height
+            trackList.style.maxHeight = calculatedMaxHeight + 'px';
+        } else {
+            // Compact view ON (or single-disc): Use fixed 300px height (compact!)
+            trackList.style.maxHeight = '300px';
+        }
+
         // Album art
         var artContainer = document.createElement('div');
         artContainer.className = 'album-expansion-art';

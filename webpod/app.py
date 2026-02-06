@@ -69,6 +69,7 @@ def get_settings():
     show_format_tags = show_format_tags_setting != '0'  # Default to True
     colorful_albums = models.get_setting('colorful_albums') != '0'  # Default to True
     mini_player = models.get_setting('mini_player') or '0'  # Default to False
+    compact_disc_view = models.get_setting('compact_disc_view') or '1'  # Default to True (compact)
     theme = models.get_setting('theme') or 'auto'
     accent_color = models.get_setting('accent_color') or 'blue'
     allow_no_metadata_setting = models.get_setting('allow_files_without_metadata')
@@ -92,6 +93,7 @@ def get_settings():
         'show_format_tags': show_format_tags,
         'colorful_albums': colorful_albums,
         'mini_player': mini_player,
+        'compact_disc_view': compact_disc_view,
         'theme': theme,
         'accent_color': accent_color,
         'allow_files_without_metadata': allow_no_metadata,
@@ -130,6 +132,9 @@ def save_settings():
 
     if 'mini_player' in data:
         models.set_setting('mini_player', '1' if data['mini_player'] else '0')
+
+    if 'compact_disc_view' in data:
+        models.set_setting('compact_disc_view', '1' if data['compact_disc_view'] else '0')
 
     if 'theme' in data:
         theme = data['theme']
