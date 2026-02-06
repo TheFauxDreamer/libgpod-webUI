@@ -1147,9 +1147,9 @@ var WebPod = {
             });
         });
 
-        // Themes: Save button - saves ALL settings (no scan)
-        var themesSaveBtn = document.getElementById('themes-save');
-        themesSaveBtn.addEventListener('click', function() {
+        // Appearance: Save button - saves ALL settings (no scan)
+        var appearanceSaveBtn = document.getElementById('appearance-save');
+        appearanceSaveBtn.addEventListener('click', function() {
             saveAllSettings().then(function() {
                 WebPod.toast('Settings saved', 'success');
             }).catch(function(err) {
@@ -1157,9 +1157,9 @@ var WebPod = {
             });
         });
 
-        // Music: Save button - saves ALL settings (no scan)
-        var musicSaveBtn = document.getElementById('music-save');
-        musicSaveBtn.addEventListener('click', function() {
+        // Library: Save button - saves ALL settings (no scan)
+        var librarySaveBtn = document.getElementById('library-save');
+        librarySaveBtn.addEventListener('click', function() {
             saveAllSettings().then(function() {
                 WebPod.toast('Settings saved', 'success');
             }).catch(function(err) {
@@ -1167,9 +1167,9 @@ var WebPod = {
             });
         });
 
-        // Video: Save button - saves ALL settings (no scan)
-        var videoSaveBtn = document.getElementById('video-save');
-        videoSaveBtn.addEventListener('click', function() {
+        // Sync: Save button - saves ALL settings (no scan)
+        var syncSaveBtn = document.getElementById('sync-save');
+        syncSaveBtn.addEventListener('click', function() {
             saveAllSettings().then(function() {
                 WebPod.toast('Settings saved', 'success');
             }).catch(function(err) {
