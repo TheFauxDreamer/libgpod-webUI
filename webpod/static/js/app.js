@@ -167,11 +167,12 @@ var WebPod = {
      */
     switchView: function(view, skipLoad) {
         WebPod.currentView = view;
-        var views = ['albums', 'tracks', 'podcasts', 'search', 'ipod-tracks'];
+        var views = ['albums', 'tracks', 'podcasts', 'videos', 'search', 'ipod-tracks'];
         var buttons = {
             'albums': document.getElementById('view-albums'),
             'tracks': document.getElementById('view-tracks'),
             'podcasts': document.getElementById('view-podcasts'),
+            'videos': document.getElementById('view-videos'),
             'search': document.getElementById('view-search'),
             'ipod-tracks': document.getElementById('view-ipod-tracks')
         };
@@ -206,6 +207,8 @@ var WebPod = {
                 Library.loadTracks();
             } else if (view === 'podcasts') {
                 Podcasts.loadSeries();
+            } else if (view === 'videos') {
+                Videos.loadVideos();
             } else if (view === 'search') {
                 // If there's a current search query, perform search
                 var query = document.getElementById('search-input').value.trim();
@@ -762,6 +765,9 @@ var WebPod = {
         document.getElementById('view-podcasts').addEventListener('click', function() {
             WebPod.switchView('podcasts');
         });
+        document.getElementById('view-videos').addEventListener('click', function() {
+            WebPod.switchView('videos');
+        });
         document.getElementById('view-ipod-tracks').addEventListener('click', function() {
             WebPod.switchView('ipod-tracks');
         });
@@ -824,6 +830,7 @@ var WebPod = {
             // Store paths for settings dialog
             WebPod.musicPath = data.music_path || '';
             WebPod.podcastPath = data.podcast_path || '';
+            WebPod.videoPath = data.video_path || '';
             WebPod.exportPath = data.export_path || '';
             WebPod.showFormatTags = data.show_format_tags !== false;  // Default to true
             WebPod.colorfulAlbums = data.colorful_albums !== false;  // Default to true
@@ -837,7 +844,7 @@ var WebPod = {
             WebPod.miniPlayer = data.mini_player === '1';
             WebPod.applyMiniPlayer();
             WebPod.compactDiscView = data.compact_disc_view === '1';
-            WebPod.disableToasts = data.disable_toasts === '1';
+            WebPod.disableToasts = data.disable_toasts === true;
         }).catch(function() {
             // Settings not available
         });
@@ -851,9 +858,11 @@ var WebPod = {
         var dialog = document.getElementById('settings-dialog');
         var musicInput = document.getElementById('music-path-input');
         var podcastInput = document.getElementById('podcast-path-input');
+        var videoInput = document.getElementById('video-path-input');
         var exportInput = document.getElementById('export-path-input');
         var musicScanBtn = document.getElementById('music-scan-btn');
         var podcastScanBtn = document.getElementById('podcast-scan-btn');
+        var videoScanBtn = document.getElementById('video-scan-btn');
         var exportBtn = document.getElementById('export-btn');
         var formatTagsCheckbox = document.getElementById('show-format-tags');
         var colorfulAlbumsCheckbox = document.getElementById('colorful-albums');
@@ -916,6 +925,7 @@ var WebPod = {
 
             musicInput.value = WebPod.musicPath || '';
             podcastInput.value = WebPod.podcastPath || '';
+            videoInput.value = WebPod.videoPath || '';
             exportInput.value = WebPod.exportPath || '';
             formatTagsCheckbox.checked = WebPod.showFormatTags || false;
             colorfulAlbumsCheckbox.checked = WebPod.colorfulAlbums !== false;  // Default to true
@@ -936,6 +946,7 @@ var WebPod = {
             }
             musicScanBtn.disabled = !WebPod.musicPath;
             podcastScanBtn.disabled = !WebPod.podcastPath;
+            videoScanBtn.disabled = !WebPod.videoPath;
             // Export button enabled only if iPod is connected
             exportBtn.disabled = !IPod.connected;
             dialog.classList.remove('hidden');
@@ -947,6 +958,9 @@ var WebPod = {
         });
         podcastInput.addEventListener('input', function() {
             podcastScanBtn.disabled = !podcastInput.value.trim();
+        });
+        videoInput.addEventListener('input', function() {
+            videoScanBtn.disabled = !videoInput.value.trim();
         });
 
         // Music scan button
@@ -994,6 +1008,28 @@ var WebPod = {
             });
         });
 
+        // Video scan button
+        videoScanBtn.addEventListener('click', function() {
+            var path = videoInput.value.trim();
+            if (!path) return;
+
+            videoScanBtn.disabled = true;
+            videoScanBtn.textContent = 'Scanning...';
+
+            WebPod.api('/api/settings', {
+                method: 'POST',
+                body: { video_path: path }
+            }).then(function() {
+                WebPod.videoPath = path;
+                return WebPod.api('/api/library/scan-videos', { method: 'POST' });
+            }).then(function() {
+                WebPod.toast('Video scan started', 'info');
+            }).catch(function() {
+                videoScanBtn.disabled = false;
+                videoScanBtn.textContent = 'Scan Videos';
+            });
+        });
+
         // Export button
         exportBtn.addEventListener('click', function() {
             if (!IPod.connected) {
@@ -1030,6 +1066,7 @@ var WebPod = {
                 // Setup
                 music_path: musicInput.value.trim(),
                 podcast_path: podcastInput.value.trim(),
+                video_path: videoInput.value.trim(),
                 export_path: exportInput.value.trim(),
                 // Themes
                 theme: themeSelect.value,
@@ -1052,6 +1089,7 @@ var WebPod = {
                 // Update local state
                 WebPod.musicPath = allSettings.music_path;
                 WebPod.podcastPath = allSettings.podcast_path;
+                WebPod.videoPath = allSettings.video_path;
                 WebPod.exportPath = allSettings.export_path;
                 WebPod.theme = allSettings.theme;
                 WebPod.applyTheme();
@@ -1129,6 +1167,16 @@ var WebPod = {
             });
         });
 
+        // Video: Save button - saves ALL settings (no scan)
+        var videoSaveBtn = document.getElementById('video-save');
+        videoSaveBtn.addEventListener('click', function() {
+            saveAllSettings().then(function() {
+                WebPod.toast('Settings saved', 'success');
+            }).catch(function(err) {
+                WebPod.toast('Failed to save settings', 'error');
+            });
+        });
+
         // Close buttons (one per category)
         var closeButtons = dialog.querySelectorAll('.settings-close-btn');
         closeButtons.forEach(function(btn) {
@@ -1182,6 +1230,25 @@ var WebPod = {
             WebPod.toast('Podcast scan complete: ' + data.total_episodes + ' episodes', 'success');
             if (WebPod.currentView === 'podcasts') {
                 Podcasts.loadSeries();
+            }
+        });
+
+        WebPod.socket.on('video_scan_progress', function(data) {
+            var status = document.getElementById('video-scan-status');
+            if (status) {
+                status.textContent = data.scanned + '/' + data.total + ' - ' + data.current_file;
+            }
+        });
+
+        WebPod.socket.on('video_scan_complete', function(data) {
+            var videoScanBtn = document.getElementById('video-scan-btn');
+            videoScanBtn.disabled = false;
+            videoScanBtn.textContent = 'Scan Videos';
+            document.getElementById('video-scan-status').textContent = '';
+            WebPod.loadSettings();
+            WebPod.toast('Video scan complete: ' + data.total_videos + ' videos', 'success');
+            if (WebPod.currentView === 'videos') {
+                Videos.loadVideos();
             }
         });
 

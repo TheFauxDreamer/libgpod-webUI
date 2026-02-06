@@ -86,14 +86,23 @@ def get_settings():
     transcode_flac_enabled = transcode_flac != '0'  # None or '1' = enabled
     transcode_format = models.get_setting('transcode_flac_format') or 'alac'
 
+    # Toast notification settings
+    disable_toasts = models.get_setting('disable_toasts') == '1'  # Default to False (toasts enabled)
+
+    # Video settings
+    video_path = models.get_setting('video_library_path')
+
     return jsonify({
         'music_path': music_path,
         'podcast_path': podcast_path,
+        'video_path': video_path,
         'export_path': export_path,
         'music_set': bool(music_path),
         'podcast_set': bool(podcast_path),
-        'music_count': models.get_track_count(is_podcast=False),
+        'video_set': bool(video_path),
+        'music_count': models.get_track_count(is_podcast=False, is_video=False),
         'podcast_count': models.get_track_count(is_podcast=True),
+        'video_count': models.get_track_count(is_video=True),
         'show_format_tags': show_format_tags,
         'colorful_albums': colorful_albums,
         'mini_player': mini_player,
@@ -102,7 +111,8 @@ def get_settings():
         'accent_color': accent_color,
         'allow_files_without_metadata': allow_no_metadata,
         'transcode_flac_to_ipod': transcode_flac_enabled,
-        'transcode_flac_format': transcode_format
+        'transcode_flac_format': transcode_format,
+        'disable_toasts': disable_toasts
     })
 
 
@@ -122,6 +132,12 @@ def save_settings():
         if path and not Path(path).is_dir():
             return jsonify({"error": f"Podcast directory not found: {path}"}), 400
         models.set_setting('podcast_library_path', path if path else None)
+
+    if 'video_path' in data:
+        path = data['video_path'].strip() if data['video_path'] else ''
+        if path and not Path(path).is_dir():
+            return jsonify({"error": f"Video directory not found: {path}"}), 400
+        models.set_setting('video_library_path', path if path else None)
 
     if 'export_path' in data:
         path = data['export_path'].strip() if data['export_path'] else ''
@@ -162,6 +178,9 @@ def save_settings():
         fmt = data['transcode_flac_format']
         if fmt in ['alac', 'mp3']:
             models.set_setting('transcode_flac_format', fmt)
+
+    if 'disable_toasts' in data:
+        models.set_setting('disable_toasts', '1' if data['disable_toasts'] else '0')
 
     return jsonify({"success": True})
 
@@ -237,6 +256,45 @@ def library_scan_podcasts():
 
     socketio.start_background_task(_scan)
     return jsonify({"status": "scanning"})
+
+
+@app.route('/api/library/scan-videos', methods=['POST'])
+def library_scan_videos():
+    """Scan video library directory."""
+    path = models.get_setting('video_library_path')
+    if not path:
+        return jsonify({"error": "No video library path configured"}), 400
+    if not Path(path).is_dir():
+        return jsonify({"error": f"Directory not found: {path}"}), 400
+
+    def _scan():
+        def progress(scanned, total, current_file):
+            socketio.emit('video_scan_progress', {
+                'scanned': scanned,
+                'total': total,
+                'current_file': os.path.basename(current_file),
+            })
+
+        try:
+            scan_directory(path, progress_callback=progress, is_video=True)
+            total = models.get_track_count(is_video=True)
+            socketio.emit('video_scan_complete', {'total_videos': total})
+        except Exception as e:
+            socketio.emit('video_scan_error', {'message': str(e)})
+
+    socketio.start_background_task(_scan)
+    return jsonify({"status": "scanning"})
+
+
+@app.route('/api/videos', methods=['GET'])
+def video_list():
+    """Get all videos in the library."""
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    sort = request.args.get('sort', 'title')
+    search = request.args.get('search', None)
+    videos, total = models.get_videos(page, per_page, sort, 'asc', search)
+    return jsonify({"videos": videos, "total": total, "page": page})
 
 
 # ─── Upload API ──────────────────────────────────────────────────────
@@ -647,6 +705,16 @@ def ipod_device_info():
     try:
         info = ipod.get_device_info()
         return jsonify(info)
+    except IPodError as e:
+        return jsonify({"error": str(e)}), 503
+
+
+@app.route('/api/ipod/supports-video', methods=['GET'])
+def ipod_supports_video():
+    """Check if connected iPod supports video playback."""
+    try:
+        supports = ipod.supports_video() if ipod.connected else False
+        return jsonify({"supports_video": supports})
     except IPodError as e:
         return jsonify({"error": str(e)}), 503
 

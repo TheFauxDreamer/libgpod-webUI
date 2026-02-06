@@ -135,6 +135,7 @@
                     <button id="view-albums" class="btn btn-tab active">Albums</button>
                     <button id="view-tracks" class="btn btn-tab">Tracks</button>
                     <button id="view-podcasts" class="btn btn-tab">Podcasts</button>
+                    <button id="view-videos" class="btn btn-tab">Videos</button>
                     <button id="view-search" class="btn btn-tab">Search</button>
                     <button id="view-ipod-tracks" class="btn btn-tab">iPod Tracks</button>
                 </div>
@@ -232,6 +233,11 @@
                         <tbody id="podcast-episodes-tbody"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- Videos View -->
+            <div id="videos-view" class="content-view hidden">
+                <div id="videos-grid" class="albums-grid"></div>
             </div>
 
             <!-- iPod Tracks View -->
@@ -427,6 +433,10 @@
                             <span class="nav-icon">🎵</span>
                             <span class="nav-label">Music</span>
                         </li>
+                        <li data-category="video">
+                            <span class="nav-icon">🎬</span>
+                            <span class="nav-label">Video</span>
+                        </li>
                     </ul>
                 </nav>
 
@@ -596,6 +606,35 @@
                             <button class="settings-close-btn btn">Close</button>
                         </div>
                     </div>
+
+                    <!-- Video Category -->
+                    <div class="settings-category hidden" data-category="video">
+                        <h2>Video</h2>
+
+                        <div class="settings-group">
+                            <label>Video Library Path</label>
+                            <small class="settings-description">Location of your video files (.m4v, .mov). Video sync requires a video-capable iPod.</small>
+                            <div class="path-input-row">
+                                <input type="text" id="video-path-input" placeholder="/path/to/videos" />
+                            </div>
+                            <div class="settings-group-actions">
+                                <button id="video-scan-btn" class="btn btn-small" disabled>Scan Videos</button>
+                                <span id="video-scan-status" class="scan-status"></span>
+                            </div>
+                        </div>
+
+                        <div class="settings-info-box">
+                            <strong>Compatible formats:</strong> .m4v and .mov files encoded with H.264 or MPEG-4.
+                            Videos from iTunes are already compatible. For best results: 640x480 or lower resolution,
+                            H.264 codec, 1500kbps or lower bitrate.
+                        </div>
+
+                        <!-- Video Actions -->
+                        <div class="settings-actions">
+                            <button id="video-save" class="btn btn-primary">Save</button>
+                            <button class="settings-close-btn btn">Close</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -753,6 +792,7 @@
     <script src="/static/js/dragdrop.js"></script>
     <script src="/static/js/sync.js"></script>
     <script src="/static/js/podcasts.js"></script>
+    <script src="/static/js/videos.js"></script>
     <script src="/static/js/upload.js"></script>
 </body>
 </html>

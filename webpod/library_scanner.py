@@ -14,6 +14,7 @@ from . import artwork as artwork_module
 from .duplicate_detector import sha1_hash
 
 SUPPORTED_EXTENSIONS = {'.mp3', '.m4a', '.aac', '.mp4', '.flac', '.wav'}
+VIDEO_EXTENSIONS = {'.m4v', '.mov'}
 
 
 def _extract_metadata(file_path):
@@ -227,12 +228,13 @@ def _extract_metadata(file_path):
     return meta
 
 
-def process_single_file(file_path, is_podcast=False):
-    """Process a single audio file: extract metadata, hash, artwork, store in DB.
+def process_single_file(file_path, is_podcast=False, is_video=False):
+    """Process a single audio/video file: extract metadata, hash, artwork, store in DB.
 
     Args:
-        file_path: Path to the audio file.
+        file_path: Path to the audio/video file.
         is_podcast: If True, mark the track as a podcast.
+        is_video: If True, mark the track as a video.
 
     Returns:
         dict with 'status' ('added', 'skipped', 'error') and optional 'track_data' or 'reason'.
@@ -282,6 +284,7 @@ def process_single_file(file_path, is_podcast=False):
         'has_artwork': 1 if has_art else 0,
         'artwork_hash': art_hash,
         'is_podcast': 1 if is_podcast else 0,
+        'is_video': 1 if is_video else 0,
         **meta,
     }
     models.upsert_track(track_data)
@@ -289,23 +292,27 @@ def process_single_file(file_path, is_podcast=False):
     return {'status': 'added', 'track_data': track_data}
 
 
-def scan_directory(library_path, progress_callback=None, is_podcast=False):
-    """Scan a directory for audio files and store metadata in the database.
+def scan_directory(library_path, progress_callback=None, is_podcast=False, is_video=False):
+    """Scan a directory for audio/video files and store metadata in the database.
 
     Args:
         library_path: Root directory to scan
         progress_callback: Optional function(scanned, total, current_file)
         is_podcast: If True, mark scanned tracks as podcasts
+        is_video: If True, mark scanned tracks as videos
     """
     library_path = Path(library_path)
     if not library_path.is_dir():
         raise ValueError(f"Not a directory: {library_path}")
 
-    # First pass: collect all audio files
+    # Choose extensions based on scan type
+    extensions = VIDEO_EXTENSIONS if is_video else SUPPORTED_EXTENSIONS
+
+    # First pass: collect all media files
     audio_files = []
     for root, dirs, files in os.walk(library_path):
         for fname in files:
-            if Path(fname).suffix.lower() in SUPPORTED_EXTENSIONS:
+            if Path(fname).suffix.lower() in extensions:
                 audio_files.append(Path(root) / fname)
 
     total = len(audio_files)
@@ -327,7 +334,7 @@ def scan_directory(library_path, progress_callback=None, is_podcast=False):
                 progress_callback(scanned, total, file_str)
             continue
 
-        process_single_file(file_path, is_podcast=is_podcast)
+        process_single_file(file_path, is_podcast=is_podcast, is_video=is_video)
 
         if progress_callback and scanned % 10 == 0:
             progress_callback(scanned, total, file_str)

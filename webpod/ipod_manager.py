@@ -353,12 +353,19 @@ class IPodManager:
                 info = gpod.itdb_device_get_ipod_info(device)
 
                 if info:
+                    # Check video support
+                    try:
+                        video_support = gpod.itdb_device_supports_video(device)
+                    except Exception:
+                        video_support = False
+
                     return {
                         'model': info.ipod_model,
                         'generation': info.ipod_generation,
                         'capacity': info.capacity,
                         'model_string': gpod.itdb_info_get_ipod_model_name_string(info.ipod_model),
                         'generation_string': gpod.itdb_info_get_ipod_generation_string(info.ipod_generation),
+                        'supports_video': video_support,
                     }
             except Exception:
                 pass
@@ -369,7 +376,23 @@ class IPodManager:
                 'capacity': 0,
                 'model_string': 'Unknown iPod',
                 'generation_string': 'Unknown',
+                'supports_video': False,
             }
+
+    def supports_video(self):
+        """Check if the connected iPod supports video playback.
+
+        Returns:
+            bool: True if iPod supports video, False otherwise
+        """
+        with self._lock:
+            self._require_connected()
+
+            try:
+                device = self._db._itdb.device
+                return gpod.itdb_device_supports_video(device)
+            except Exception:
+                return False
 
     def create_playlist(self, name):
         """Create a new playlist on the iPod."""
@@ -416,6 +439,21 @@ class IPodManager:
         """
         with self._lock:
             self._require_connected()
+
+            # Check if any tracks are videos and if iPod supports video
+            has_videos = any(t.get('is_video') for t in library_tracks)
+            if has_videos:
+                try:
+                    device = self._db._itdb.device
+                    video_support = gpod.itdb_device_supports_video(device)
+                except Exception:
+                    video_support = False
+
+                if not video_support:
+                    raise IPodError(
+                        "This iPod does not support video playback. "
+                        "Video-capable models: iPod Video (5G), Classic, Nano 3-5G, and iPod Touch."
+                    )
 
             # Collect existing hashes from iPod for duplicate detection
             existing_hashes = set()
@@ -482,6 +520,10 @@ class IPodManager:
                 try:
                     # Create track on iPod (extracts ID3 tags automatically)
                     ipod_track = self._db.new_Track(filename=file_path)
+
+                    # Set media type for video tracks
+                    if lib_track.get('is_video'):
+                        ipod_track['mediatype'] = gpod.ITDB_MEDIATYPE_MOVIE
 
                     # Set artwork from cache if available
                     art_path = get_artwork_path(lib_track.get('artwork_hash'))

@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS library_tracks (
     bitrate      INTEGER,
     has_artwork  INTEGER DEFAULT 0,
     artwork_hash TEXT,
-    is_podcast   INTEGER DEFAULT 0
+    is_podcast   INTEGER DEFAULT 0,
+    is_video     INTEGER DEFAULT 0
 );
 
 CREATE INDEX IF NOT EXISTS idx_sha1 ON library_tracks(sha1_hash);
@@ -48,6 +49,8 @@ CREATE TABLE IF NOT EXISTS scan_state (
 
 MIGRATIONS = [
     "ALTER TABLE library_tracks ADD COLUMN is_podcast INTEGER DEFAULT 0",
+    "ALTER TABLE library_tracks ADD COLUMN is_video INTEGER DEFAULT 0",
+    "CREATE INDEX IF NOT EXISTS idx_is_video ON library_tracks(is_video)",
 ]
 
 
@@ -131,20 +134,22 @@ def upsert_track(track_data):
 
     track_data is a dict with keys matching column names.
     """
-    # Ensure is_podcast has a default value
+    # Ensure is_podcast and is_video have default values
     if 'is_podcast' not in track_data:
         track_data['is_podcast'] = 0
+    if 'is_video' not in track_data:
+        track_data['is_video'] = 0
 
     conn = get_db()
     conn.execute("""
         INSERT OR REPLACE INTO library_tracks
             (file_path, file_mtime, sha1_hash, title, artist, album,
              album_artist, genre, track_nr, cd_nr, year, duration_ms,
-             bitrate, has_artwork, artwork_hash, is_podcast)
+             bitrate, has_artwork, artwork_hash, is_podcast, is_video)
         VALUES
             (:file_path, :file_mtime, :sha1_hash, :title, :artist, :album,
              :album_artist, :genre, :track_nr, :cd_nr, :year, :duration_ms,
-             :bitrate, :has_artwork, :artwork_hash, :is_podcast)
+             :bitrate, :has_artwork, :artwork_hash, :is_podcast, :is_video)
     """, track_data)
     conn.commit()
     conn.close()
@@ -302,17 +307,26 @@ def get_all_tracks_for_matching():
     return [dict(r) for r in rows]
 
 
-def get_track_count(is_podcast=None):
+def get_track_count(is_podcast=None, is_video=None):
     """Get total number of tracks in library."""
     conn = get_db()
-    if is_podcast is None:
-        row = conn.execute("SELECT COUNT(*) as cnt FROM library_tracks").fetchone()
+    conditions = []
+    params = []
+
+    if is_podcast is not None:
+        conditions.append("is_podcast = ?")
+        params.append(1 if is_podcast else 0)
+
+    if is_video is not None:
+        conditions.append("is_video = ?")
+        params.append(1 if is_video else 0)
+
+    if conditions:
+        where = "WHERE " + " AND ".join(conditions)
+        row = conn.execute(f"SELECT COUNT(*) as cnt FROM library_tracks {where}", params).fetchone()
     else:
-        podcast_filter = 1 if is_podcast else 0
-        row = conn.execute(
-            "SELECT COUNT(*) as cnt FROM library_tracks WHERE is_podcast = ?",
-            (podcast_filter,)
-        ).fetchone()
+        row = conn.execute("SELECT COUNT(*) as cnt FROM library_tracks").fetchone()
+
     conn.close()
     return row["cnt"]
 
@@ -754,4 +768,59 @@ def get_all_track_ids(is_podcast=None, formats=None):
     rows = conn.execute(f"SELECT id FROM library_tracks {where}", params).fetchall()
     conn.close()
 
+    return [row['id'] for row in rows]
+
+
+# ─── Video Functions ────────────────────────────────────────────────
+
+def get_videos(page=1, per_page=50, sort="title", order="asc", search=None):
+    """Get paginated videos from the library cache."""
+    conn = get_db()
+    allowed_sorts = {"title", "artist", "album", "year", "duration_ms"}
+    if sort not in allowed_sorts:
+        sort = "title"
+    if order not in ("asc", "desc"):
+        order = "asc"
+
+    params = []
+    where = "WHERE is_video = 1"
+
+    if search:
+        where += " AND (title LIKE ? OR artist LIKE ? OR album LIKE ?)"
+        like = f"%{search}%"
+        params.extend([like, like, like])
+
+    count_row = conn.execute(
+        f"SELECT COUNT(*) as cnt FROM library_tracks {where}", params
+    ).fetchone()
+    total = count_row["cnt"]
+
+    offset = (page - 1) * per_page
+
+    rows = conn.execute(
+        f"SELECT * FROM library_tracks {where} ORDER BY {sort} {order} LIMIT ? OFFSET ?",
+        params + [per_page, offset]
+    ).fetchall()
+    conn.close()
+
+    # Add format to each video
+    videos = []
+    for r in rows:
+        video = dict(r)
+        video['format'] = _get_format(video.get('file_path', ''))
+        videos.append(video)
+
+    return videos, total
+
+
+def get_video_count():
+    """Get total number of videos in library."""
+    return get_track_count(is_video=True)
+
+
+def get_all_video_ids():
+    """Get all video track IDs for sync."""
+    conn = get_db()
+    rows = conn.execute("SELECT id FROM library_tracks WHERE is_video = 1").fetchall()
+    conn.close()
     return [row['id'] for row in rows]
