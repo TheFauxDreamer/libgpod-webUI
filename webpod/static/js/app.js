@@ -10,6 +10,7 @@ var WebPod = {
     skipSearchHandler: false,  // Flag to skip search when setting input programmatically
     theme: 'dark',
     accentColor: 'blue',
+    miniPlayer: false,  // Mini player mode setting
     selectedFormats: ['all'],  // Default to all formats
     lastSearchQuery: '',  // Track last search to avoid duplicate calls
     currentSearchQuery: null,  // Track current in-flight search query to avoid race conditions
@@ -86,6 +87,21 @@ var WebPod = {
      */
     applyAccentColor: function() {
         document.documentElement.setAttribute('data-accent', WebPod.accentColor);
+    },
+
+    /**
+     * Apply mini player mode setting
+     */
+    applyMiniPlayer: function() {
+        var playerBar = document.getElementById('player-bar');
+        var mainLayout = document.getElementById('main-layout');
+        if (WebPod.miniPlayer) {
+            playerBar.classList.add('mini-mode');
+            mainLayout.classList.add('mini-player-active');
+        } else {
+            playerBar.classList.remove('mini-mode');
+            mainLayout.classList.remove('mini-player-active');
+        }
     },
 
     /**
@@ -638,6 +654,8 @@ var WebPod = {
             WebPod.applyTheme();
             WebPod.accentColor = data.accent_color || 'blue';
             WebPod.applyAccentColor();
+            WebPod.miniPlayer = data.mini_player === '1';
+            WebPod.applyMiniPlayer();
         }).catch(function() {
             // Settings not available
         });
@@ -657,6 +675,7 @@ var WebPod = {
         var exportBtn = document.getElementById('export-btn');
         var formatTagsCheckbox = document.getElementById('show-format-tags');
         var colorfulAlbumsCheckbox = document.getElementById('colorful-albums');
+        var miniPlayerCheckbox = document.getElementById('mini-player');
         var allowNoMetadataCheckbox = document.getElementById('allow-files-without-metadata');
         var transcodeFlacCheckbox = document.getElementById('transcode-flac-to-ipod');
         var transcodeFlacFormat = document.getElementById('transcode-flac-format');
@@ -716,6 +735,7 @@ var WebPod = {
             exportInput.value = WebPod.exportPath || '';
             formatTagsCheckbox.checked = WebPod.showFormatTags || false;
             colorfulAlbumsCheckbox.checked = WebPod.colorfulAlbums !== false;  // Default to true
+            miniPlayerCheckbox.checked = WebPod.miniPlayer === true;
             allowNoMetadataCheckbox.checked = WebPod.allowFilesWithoutMetadata === true;  // Default to false (unchecked)
             transcodeFlacCheckbox.checked = WebPod.transcodeFlacToIpod !== false;  // Default to true (enabled)
             transcodeFlacFormat.value = WebPod.transcodeFlacFormat || 'alac';  // Default to ALAC
@@ -872,6 +892,7 @@ var WebPod = {
             var theme = themeSelect.value;
             var accentColor = accentColorSelect.value;
             var colorfulAlbums = colorfulAlbumsCheckbox.checked;
+            var miniPlayer = miniPlayerCheckbox.checked;
 
             // Save only Themes category settings
             WebPod.api('/api/settings', {
@@ -879,7 +900,8 @@ var WebPod = {
                 body: {
                     theme: theme,
                     accent_color: accentColor,
-                    colorful_albums: colorfulAlbums
+                    colorful_albums: colorfulAlbums,
+                    mini_player: miniPlayer
                 }
             }).then(function() {
                 // Update local state and apply immediately
@@ -888,6 +910,8 @@ var WebPod = {
                 WebPod.accentColor = accentColor;
                 WebPod.applyAccentColor();
                 WebPod.colorfulAlbums = colorfulAlbums;
+                WebPod.miniPlayer = miniPlayer;
+                WebPod.applyMiniPlayer();
 
                 WebPod.loadSettings();
                 WebPod.toast('Theme settings saved', 'success');

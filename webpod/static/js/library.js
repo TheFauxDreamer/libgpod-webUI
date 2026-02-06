@@ -522,6 +522,12 @@ var Library = {
             // Create track grid for this disc
             var discGrid = document.createElement('div');
             discGrid.className = 'album-expansion-disc-tracks';
+
+            // Use single column for discs with fewer than 5 tracks
+            if (discTracks.length < 5) {
+                discGrid.classList.add('single-column');
+            }
+
             var rowCount = Math.ceil(discTracks.length / 2);
             discGrid.style.gridTemplateRows = 'repeat(' + rowCount + ', auto)';
 
@@ -821,6 +827,12 @@ var Library = {
             // Create track grid for this disc
             var discGrid = document.createElement('div');
             discGrid.className = 'album-expansion-disc-tracks';
+
+            // Use single column for discs with fewer than 5 tracks
+            if (discTracks.length < 5) {
+                discGrid.classList.add('single-column');
+            }
+
             var rowCount = Math.ceil(discTracks.length / 2);
             discGrid.style.gridTemplateRows = 'repeat(' + rowCount + ', auto)';
 
